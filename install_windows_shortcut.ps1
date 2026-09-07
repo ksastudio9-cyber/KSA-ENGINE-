@@ -4,6 +4,10 @@ $project = (Resolve-Path (Join-Path $PSScriptRoot '.')).Path
 $desktop = [Environment]::GetFolderPath('Desktop')
 $shortcutPath = Join-Path $desktop 'KSA ENGINE.lnk'
 $target = Join-Path $project 'launch_ksa_engine.bat'
+$packagedTarget = Join-Path $project 'dist\KSA.exe'
+if (Test-Path $packagedTarget) {
+    $target = $packagedTarget
+}
 $icon = Join-Path $project 'assets\ksa-engine-k.ico'
 
 $shell = New-Object -ComObject WScript.Shell

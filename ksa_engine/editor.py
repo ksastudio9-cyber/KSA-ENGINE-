@@ -17,7 +17,7 @@ class KSAEditor:
 
     def __init__(self, description: str = "مدينة صحراوية ليلية فيها واحة ومعركة") -> None:
         pygame.init()
-        pygame.display.set_caption("KSA ENGINE | Game Creator")
+        pygame.display.set_caption("KSA ENGINE | محرر صناعة الألعاب")
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 24)
@@ -26,7 +26,7 @@ class KSAEditor:
         self.description = description
         self.cursor = len(description)
         self.engine = build_engine(description)
-        self.status = "World ready. Edit the description and generate again."
+        self.status = "العالم جاهز. عدّل الوصف ثم اضغط توليد العالم."
         self.running = True
         self.editing = True
 
@@ -82,7 +82,7 @@ class KSAEditor:
     def _generate(self) -> None:
         if self.description.strip():
             self.engine = build_engine(self.description)
-            self.status = f"Generated {len(self.engine.world.entities)} entities from your scenario."
+            self.status = f"تم توليد {len(self.engine.world.entities)} عناصر من وصفك."
             self.cursor = len(self.description)
 
     def _save_project(self) -> None:
@@ -106,7 +106,7 @@ class KSAEditor:
             ],
         }
         Path("ksa_project.json").write_text(json.dumps(project, ensure_ascii=False, indent=2), encoding="utf-8")
-        self.status = "Saved ksa_project.json"
+        self.status = "تم حفظ المشروع في ksa_project.json"
 
     def _draw(self) -> None:
         self.screen.fill((18, 25, 39))
@@ -115,19 +115,19 @@ class KSAEditor:
         pygame.draw.rect(self.screen, (27, 38, 56), (24, 188, 1010, 570), border_radius=6)
         pygame.draw.rect(self.screen, (27, 38, 56), (1054, 96, 356, 662), border_radius=6)
         self._text("KSA ENGINE", (28, 20), self.heading, (244, 201, 101))
-        self._text("GAME CREATOR", (260, 31), self.small, (164, 181, 198))
-        self._text("Describe your game world", (40, 108), self.small, (166, 186, 205))
-        self._text(self.description or "Type a world description...", (40, 135), self.font, (240, 240, 230))
+        self._text("محرر صناعة الألعاب", (260, 31), self.small, (164, 181, 198))
+        self._text("اكتب وصف عالم لعبتك", (40, 108), self.small, (166, 186, 205))
+        self._text(self.description or "اكتب وصف العالم...", (40, 135), self.font, (240, 240, 230))
         if self.editing and pygame.time.get_ticks() % 1000 < 500:
             cursor_x = 40 + self.font.size(self.description[: self.cursor])[0]
             pygame.draw.line(self.screen, (244, 201, 101), (cursor_x, 132), (cursor_x, 158), 2)
-        self._button("GENERATE WORLD", (32, 196), (188, 50), (74, 126, 108))
-        self._button("SAVE PROJECT", (238, 196), (188, 50), (65, 96, 130))
-        self._button("PLAY 3D", (444, 196), (188, 50), (142, 95, 61))
+        self._button("توليد العالم", (32, 196), (188, 50), (74, 126, 108))
+        self._button("حفظ المشروع", (238, 196), (188, 50), (65, 96, 130))
+        self._button("تشغيل ثلاثي الأبعاد", (444, 196), (188, 50), (142, 95, 61))
         self._draw_preview()
         self._draw_inspector()
         self._text(self.status, (32, 775), self.small, (176, 192, 202))
-        self._button("EXIT", (32, 790), (188, 48), (104, 59, 67))
+        self._button("خروج", (32, 790), (188, 48), (104, 59, 67))
         pygame.display.flip()
 
     def _draw_preview(self) -> None:
@@ -146,24 +146,24 @@ class KSAEditor:
             y = preview.top + 80 + ((index * 71) % (preview.height - 130))
             color = {"building": (173, 112, 68), "character": (223, 181, 75), "npc": (72, 166, 179), "vegetation": (65, 135, 78), "light": (239, 200, 105), "camera": (186, 193, 205)}.get(entity.kind, (112, 135, 150))
             pygame.draw.circle(self.screen, color, (x, y), 12 if entity.kind != "building" else 18)
-        self._text("WORLD PREVIEW", (58, 286), self.small, (224, 229, 218))
+        self._text("معاينة العالم", (58, 286), self.small, (224, 229, 218))
 
     def _draw_inspector(self) -> None:
         world = self.engine.world
         if world is None:
             return
-        self._text("WORLD INSPECTOR", (1076, 120), self.font, (244, 201, 101))
+        self._text("معلومات العالم", (1076, 120), self.font, (244, 201, 101))
         lines = [
-            f"Seed: {world.seed}",
-            f"Entities: {len(world.entities)}",
-            f"Terrain: {world.metadata.get('terrain', 'unknown')}",
-            f"Time: {world.metadata.get('time_of_day', 'day')}",
+            f"البذرة: {world.seed}",
+            f"العناصر: {len(world.entities)}",
+            f"التضاريس: {world.metadata.get('terrain', 'غير معروف')}",
+            f"الوقت: {world.metadata.get('time_of_day', 'نهار')}",
             "",
-            "STORY DIRECTOR",
-            f"Intent: {world.metadata.get('narrative', {}).get('intent', 'none')}",
-            f"Goal: {world.metadata.get('narrative', {}).get('objective', '')}",
+            "مدير القصة",
+            f"النية: {world.metadata.get('narrative', {}).get('intent', 'لا يوجد')}",
+            f"الهدف: {world.metadata.get('narrative', {}).get('objective', '')}",
             "",
-            "ENTITIES",
+            "العناصر",
         ]
         for index, line in enumerate(lines):
             self._text(line, (1076, 166 + index * 27), self.small, (208, 218, 224))

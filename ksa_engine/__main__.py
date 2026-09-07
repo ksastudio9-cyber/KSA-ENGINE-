@@ -4,6 +4,7 @@ import argparse
 import json
 
 from .demo import build_engine
+from .native import run_native
 from .systems import NarrativeSystem
 
 
@@ -37,6 +38,9 @@ def main() -> None:
         run_editor(args.description)
         return
 
+    if not args.say and run_native(args.description, args.seconds, args.seed, args.json):
+        return
+
     engine = build_engine(args.description, args.seed)
     engine.run_for(args.seconds)
     world = engine.world
@@ -56,8 +60,8 @@ def main() -> None:
         print(json.dumps(state, ensure_ascii=False, indent=2))
     else:
         print(f"KSA ENGINE | {state['name']}")
-        print(f"entities={state['entities']} time={state['elapsed_time']:.3f}s seed={state['seed']}")
-        print(f"terrain={state['terrain']} time_of_day={state['time_of_day']}")
+        print(f"العناصر={state['entities']} المدة={state['elapsed_time']:.3f}ث البذرة={state['seed']}")
+        print(f"التضاريس={state['terrain']} وقت_اليوم={state['time_of_day']}")
         if args.say:
             narrative_system = next(system for system in engine.systems if isinstance(system, NarrativeSystem))
             print(f"العالم: {narrative_system.say(world, args.say)}")

@@ -16,7 +16,7 @@ class Renderer3D:
 
     def __init__(self, engine) -> None:
         pygame.init()
-        pygame.display.set_caption("KSA ENGINE 3D | Arabian Procedural World")
+        pygame.display.set_caption("KSA ENGINE ثلاثي الأبعاد | عالم عربي إجرائي")
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 24)
@@ -142,8 +142,8 @@ class Renderer3D:
         panel = pygame.Surface((self.width, 72), pygame.SRCALPHA)
         panel.fill((7, 12, 25, 220))
         self.screen.blit(panel, (0, 0))
-        title = self.title_font.render("KSA ENGINE 3D", True, (244, 201, 101))
-        info = self.font.render(f"{self.world.name} | Entities: {len(self.world.entities)} | {self.world.elapsed_time:05.1f}s", True, (235, 235, 225))
+        title = self.title_font.render("KSA ENGINE ثلاثي الأبعاد", True, (244, 201, 101))
+        info = self.font.render(f"{self.world.name} | العناصر: {len(self.world.entities)} | {self.world.elapsed_time:05.1f}ث", True, (235, 235, 225))
         hint = self.font.render("WASD / الأسهم للحركة | ESC للخروج", True, (176, 192, 202))
         self.screen.blit(title, (24, 10))
         self.screen.blit(info, (265, 14))
