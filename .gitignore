@@ -141,3 +141,15 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python runtime files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Local generated projects and builds
+ksa_project.json
+build/
+dist/
