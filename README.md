@@ -22,9 +22,9 @@ assets/            # Project assets
 
 ## Architecture
 
-`Engine` owns one active `Scene`, an ordered list of systems, and a fixed-step accumulator. A frame is clamped to 250ms, simulation advances at 60Hz, and the accumulator is bounded by a maximum number of fixed steps to avoid a spiral of death. Variable-rate systems run once after fixed simulation.
+`Engine` owns one active `Scene`, an ordered list of systems, and a fixed-step accumulator. A frame is clamped to 250ms, simulation advances at 60Hz, and the accumulator is bounded by a maximum number of fixed steps to avoid a spiral of death. Variable-rate systems run once after fixed simulation. `EngineStats` exposes frame count, fixed-step count, dropped time, and the interpolation alpha used by renderers. Systems can be stopped safely when scenes switch.
 
-`Scene` is the scene graph and entity registry. Entities have a stable integer id, a hierarchical `Transform`, a kind, and extensible component data. `EventBus` decouples gameplay and tools. `ResourceManager` provides explicit loader registration and cached resources. `PhysicsSystem` operates on `PhysicsBody` components and publishes collision or trigger events.
+`Scene` is the scene graph and entity registry. Entities have a stable integer id, a hierarchical `Transform`, a kind, and extensible component data. Parent cycles are rejected and world positions are resolved from the hierarchy. `SceneManager` registers named scenes and switches them through the engine lifecycle. `EventBus` decouples gameplay and tools. `ResourceManager` provides explicit loader registration and cached resources. `PhysicsSystem` uses a spatial-hash broad phase, deterministic AABB resolution, gravity, and collision/trigger enter/exit events.
 
 ## Run
 

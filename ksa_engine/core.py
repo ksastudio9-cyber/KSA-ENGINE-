@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field, is_dataclass
+import math
+from time import perf_counter
 from typing import Any, Protocol
 
 
@@ -20,6 +22,25 @@ class Vector3:
 
     def __mul__(self, scalar: float) -> "Vector3":
         return Vector3(self.x * scalar, self.y * scalar, self.z * scalar)
+
+    def __truediv__(self, scalar: float) -> "Vector3":
+        if scalar == 0.0:
+            raise ZeroDivisionError("Cannot divide Vector3 by zero")
+        return Vector3(self.x / scalar, self.y / scalar, self.z / scalar)
+
+    def length(self) -> float:
+        return math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
+
+    def normalized(self) -> "Vector3":
+        length = self.length()
+        return self if length == 0.0 else self / length
+
+    def dot(self, other: "Vector3") -> float:
+        return self.x * other.x + self.y * other.y + self.z * other.z
+
+    def lerp(self, other: "Vector3", amount: float) -> "Vector3":
+        amount = max(0.0, min(1.0, amount))
+        return self + (other - self) * amount
 
 
 @dataclass
@@ -72,6 +93,38 @@ class Scene:
     def entity(self, entity_id: int) -> Entity | None:
         return self.entities.get(entity_id)
 
+    def set_parent(self, entity_id: int, parent_id: int | None) -> None:
+        entity = self.entity(entity_id)
+        if entity is None:
+            raise KeyError(f"Unknown entity id: {entity_id}")
+        if parent_id == entity_id:
+            raise ValueError("An entity cannot parent itself")
+        ancestor = parent_id
+        while ancestor is not None:
+            if ancestor == entity_id:
+                raise ValueError("Transform hierarchy cannot contain cycles")
+            parent = self.entity(ancestor)
+            ancestor = parent.transform.parent_id if parent else None
+        entity.transform.parent_id = parent_id
+
+    def world_position(self, entity_id: int) -> Vector3:
+        entity = self.entity(entity_id)
+        if entity is None:
+            raise KeyError(f"Unknown entity id: {entity_id}")
+        position = entity.transform.position
+        parent_id = entity.transform.parent_id
+        visited: set[int] = set()
+        while parent_id is not None:
+            if parent_id in visited:
+                raise ValueError("Transform hierarchy contains a cycle")
+            visited.add(parent_id)
+            parent = self.entity(parent_id)
+            if parent is None:
+                break
+            position = position + parent.transform.position
+            parent_id = parent.transform.parent_id
+        return position
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -111,6 +164,15 @@ class EngineConfig:
     max_fixed_steps: int = 8
 
 
+@dataclass
+class EngineStats:
+    frame_count: int = 0
+    fixed_step_count: int = 0
+    dropped_time: float = 0.0
+    last_frame_time: float = 0.0
+    last_fixed_steps: int = 0
+
+
 class Engine:
     def __init__(self, config: EngineConfig | None = None) -> None:
         self.config = config or EngineConfig()
@@ -120,13 +182,33 @@ class Engine:
         self.running = False
         self.elapsed_time = 0.0
         self._accumulator = 0.0
+        self.stats = EngineStats()
+        self.paused = False
+        self.scene_manager = SceneManager(self)
+
+    @property
+    def interpolation_alpha(self) -> float:
+        return self._accumulator / self.config.fixed_timestep
 
     def add_system(self, system: System) -> None:
         self.systems.append(system)
         if self.scene is not None:
             system.on_start(self)
 
+    def remove_system(self, system: System) -> None:
+        if system in self.systems:
+            stop = getattr(system, "on_stop", None)
+            if stop:
+                stop(self)
+            self.systems.remove(system)
+
     def load_scene(self, scene: Scene) -> None:
+        previous_scene = self.scene
+        if previous_scene is not None:
+            for system in self.systems:
+                stop = getattr(system, "on_stop", None)
+                if stop:
+                    stop(self)
         self.scene = scene
         self.world = scene
         self.elapsed_time = 0.0
@@ -140,21 +222,37 @@ class Engine:
     def update(self, delta_time: float) -> None:
         if self.scene is None:
             raise RuntimeError("No scene is loaded")
+        started_at = perf_counter()
         frame_delta = max(0.0, min(float(delta_time), self.config.max_frame_delta))
+        if self.paused:
+            self.stats.frame_count += 1
+            self.stats.last_frame_time = perf_counter() - started_at
+            return
         self._accumulator += frame_delta
         steps = 0
-        while self._accumulator >= self.config.fixed_timestep and steps < self.config.max_fixed_steps:
+        epsilon = 1e-12
+        while self._accumulator + epsilon >= self.config.fixed_timestep and steps < self.config.max_fixed_steps:
             for system in self.systems:
                 fixed_update = getattr(system, "on_fixed_update", None)
                 if fixed_update:
                     fixed_update(self, self.config.fixed_timestep)
             self._accumulator -= self.config.fixed_timestep
+            if abs(self._accumulator) < epsilon:
+                self._accumulator = 0.0
             self.elapsed_time += self.config.fixed_timestep
+            self.stats.fixed_step_count += 1
             steps += 1
+        if self._accumulator >= self.config.fixed_timestep:
+            dropped = self._accumulator - (self._accumulator % self.config.fixed_timestep)
+            self._accumulator %= self.config.fixed_timestep
+            self.stats.dropped_time += dropped
         for system in self.systems:
             update = getattr(system, "on_update", None)
             if update:
                 update(self, frame_delta)
+        self.stats.frame_count += 1
+        self.stats.last_fixed_steps = steps
+        self.stats.last_frame_time = perf_counter() - started_at
 
     def run_for(self, duration: float) -> None:
         if duration < 0:
@@ -166,3 +264,29 @@ class Engine:
             self.update(delta)
             elapsed += delta
         self.running = False
+
+
+class SceneManager:
+    """Named scene registry with deterministic runtime scene switching."""
+
+    def __init__(self, engine: Engine) -> None:
+        self.engine = engine
+        self._scenes: dict[str, Scene] = {}
+
+    def register(self, scene: Scene) -> Scene:
+        self._scenes[scene.name] = scene
+        return scene
+
+    def get(self, name: str) -> Scene | None:
+        return self._scenes.get(name)
+
+    def switch(self, name: str) -> Scene:
+        scene = self.get(name)
+        if scene is None:
+            raise KeyError(f"Scene is not registered: {name}")
+        self.engine.load_scene(scene)
+        return scene
+
+    @property
+    def names(self) -> tuple[str, ...]:
+        return tuple(self._scenes)

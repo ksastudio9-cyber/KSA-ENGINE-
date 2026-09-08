@@ -23,6 +23,7 @@ class Renderer3D:
         self.input = InputState()
         self.engine.add_system(InputMovementSystem(self.input))
         self.running = True
+        self.focal_length = self.height / (2.0 * math.tan(math.radians(60.0) / 2.0))
 
     def run(self) -> None:
         while self.running:
@@ -46,7 +47,7 @@ class Renderer3D:
         pygame.draw.rect(self.screen, (33, 66, 70), (0, self.height // 2, self.width, self.height // 2))
         scene = self.engine.scene
         if scene:
-            entities = sorted(scene.find(), key=lambda entity: entity.transform.position.z, reverse=True)
+            entities = sorted(scene.find(), key=lambda entity: self._depth(entity), reverse=True)
             for entity in entities:
                 if entity.kind not in {"camera", "light", "static"}:
                     self._draw_entity(entity)
@@ -55,13 +56,48 @@ class Renderer3D:
         pygame.display.flip()
 
     def _draw_entity(self, entity) -> None:
-        position = entity.transform.position
-        depth = max(1.0, position.z + 10.0)
-        x = int(self.width / 2 + position.x * 480 / depth)
-        y = int(self.height / 2 - position.y * 300 / depth)
-        size = max(8, int(42 / depth))
-        color = (235, 190, 75) if entity.kind == "player" else tuple(entity.get_component("material", {}).get("color", (110, 180, 195)))
+        projected = self._project(entity.transform.position)
+        if projected is None:
+            return
+        x, y, depth = projected
+        material = entity.get_component("material", {})
+        base_color = (235, 190, 75) if entity.kind == "player" else tuple(material.get("color", (110, 180, 195)))
+        shade = self._light_factor(entity)
+        color = tuple(max(0, min(255, int(channel * shade))) for channel in base_color)
+        size = max(6, int(34 * self.focal_length / max(depth * 100.0, 1.0)))
         pygame.draw.rect(self.screen, color, (x - size, y - size, size * 2, size * 2))
+
+    def _project(self, point: Vector3) -> tuple[int, int, float] | None:
+        camera = self._camera_position()
+        relative = point - camera
+        depth = -relative.z
+        if depth <= 0.1:
+            return None
+        return (
+            int(self.width / 2 + relative.x * self.focal_length / depth),
+            int(self.height / 2 - relative.y * self.focal_length / depth),
+            depth,
+        )
+
+    def _camera_position(self) -> Vector3:
+        scene = self.engine.scene
+        if scene:
+            cameras = scene.find("camera")
+            if cameras:
+                return cameras[0].transform.position
+        return Vector3(0.0, 2.0, -10.0)
+
+    def _depth(self, entity) -> float:
+        return -(entity.transform.position - self._camera_position()).z
+
+    def _light_factor(self, entity) -> float:
+        ambient = 0.35
+        scene = self.engine.scene
+        if scene:
+            lights = scene.find("light")
+            if lights:
+                ambient = max(ambient, min(1.0, sum(float(light.get_component("intensity", 1.0)) for light in lights) / len(lights)))
+        return max(0.2, min(1.0, ambient))
 
 
 def run_game_3d(engine: Engine) -> None:
