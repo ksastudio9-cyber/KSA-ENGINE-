@@ -1,56 +1,56 @@
-# KSA ENGINE
+# KSA Engine Beta
 
-نواة محرك ألعاب إجرائي عربية، حتمية وخفيفة، تحول وصفًا نصيًا واحدًا إلى عالم prototype قابل للتحديث.
+KSA Engine Beta is a small, modular game runtime for developer-authored scenes. It has an English developer UI and deliberately contains no AI generation, text-to-world, narrative, or procedural content systems.
 
-## البنية
+## Structure
 
-- `ksa_engine/core.py`: `Vector3`, `Transform`, `Entity`, `GameWorld`, ودورة `Engine`.
-- `ksa_engine/text_to_world.py`: مولد عربي/إنجليزي حتمي للتضاريس والمباني والشخصيات والكاميرا والإضاءة والصوت والسينمائية وواجهة المستخدم.
-- `ksa_engine/systems.py`: أنظمة الكاميرا والإضاءة والصوت والأنيميشن وتركيب المشهد.
-- `ksa_engine/demo.py`: مثال من نص إلى عالم ثم تشغيل لمدة ثانية.
-- `cpp/`: runtime أصلي بلغة C++17 وCLI مستقل لتوليد العالم وتشغيله دون Python.
+```text
+ksa_engine/
+  core.py          # Engine loop, Scene, Entity, Transform, Vector3
+  events.py        # EventBus and InputState
+  resources.py     # Cached texture/model/audio loader registry
+  scene_io.py      # JSON scene persistence
+  physics.py       # Fixed-step gravity, AABB collision and triggers
+  systems.py       # Camera, movement and lighting systems
+  renderer3d.py    # Dependency-light 2.5D runtime renderer
+  editor.py        # English viewport, outliner, details and content browser
+  demo.py          # Hand-authored sample scene
+  __main__.py      # Headless, editor and play entry points
+cpp/               # Optional native C++ runtime target
+assets/            # Project assets
+```
 
-## التشغيل السريع
+## Architecture
+
+`Engine` owns one active `Scene`, an ordered list of systems, and a fixed-step accumulator. A frame is clamped to 250ms, simulation advances at 60Hz, and the accumulator is bounded by a maximum number of fixed steps to avoid a spiral of death. Variable-rate systems run once after fixed simulation.
+
+`Scene` is the scene graph and entity registry. Entities have a stable integer id, a hierarchical `Transform`, a kind, and extensible component data. `EventBus` decouples gameplay and tools. `ResourceManager` provides explicit loader registration and cached resources. `PhysicsSystem` operates on `PhysicsBody` components and publishes collision or trigger events.
+
+## Run
 
 ```bash
-python -m pip install -r requirements-dev.txt
-python -m ksa_engine "مدينة صحراوية ليلية فيها واحة ومعركة" --seconds 2 --json
-python -m ksa_engine "مدينة صحراوية ليلية فيها واحة ومعركة" --play
+python -m pip install -r requirements.txt
+python -m ksa_engine --seconds 2 --json
 python -m ksa_engine --editor
-python -m ksa_engine "رجل مخطوف داخل قلعة" --say "سأساعدك وأنقذك" --json
+python -m ksa_engine --play
+python -m ksa_engine --save scene.json
 ```
 
-## تشغيل سريع من سطح المكتب
+The editor uses English labels: `Viewport`, `Outliner`, `Details`, and `Content Browser`. Select entities in the outliner, move them with arrow keys, and save with `Ctrl+S`. The play view supports `WASD` movement and `Esc` exit.
 
-### Windows
+## Scene files
 
-على Windows افتح PowerShell داخل مجلد المشروع وشغّل:
+```python
+from ksa_engine import load_scene, save_scene
+from ksa_engine.demo import build_engine
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\install_windows_shortcut.ps1
+engine = build_engine()
+save_scene(engine.scene, "scene.json")
+scene = load_scene("scene.json")
+engine.load_scene(scene)
 ```
 
-سيظهر اختصار `KSA ENGINE` على سطح مكتب Windows بأيقونة حرف `K`. يمكن تشغيله مباشرة أيضًا عبر:
-
-```powershell
-.\launch_ksa_engine.bat
-```
-
-المشغّل ينشئ بيئة `.venv` خاصة بالمحرك ويثبت متطلبات التشغيل تلقائيًا، لذلك لا يلوث Python العام. لبناء نسخة قابلة للنقل بصيغة Windows عبر PyInstaller:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\build_windows.ps1
-```
-
-بعد البناء ستجد البرنامج المستقل في `dist\KSA.exe`. هذا الملف يفتح المحرر مباشرة بالنقر المزدوج، ولا يحتاج Python أو Pip أو VS Code على جهاز المستخدم. لا يمكن إنشاء Windows `.exe` فعليًا من حاوية Linux الحالية؛ شغّل سكربت البناء على Windows.
-
-يمكنك أيضًا بناء الملف بدون جهاز Windows عبر GitHub Actions: افتح تبويب `Actions` في المستودع، اختر `Build Windows EXE` ثم اضغط `Run workflow`. بعد نجاح المهمة نزّل artifact باسم `KSA-windows` وستجد بداخله `KSA.exe`.
-
-يبني `build_windows.ps1` runtime C++ عبر CMake، ثم يضمّه مع Python وpygame وموارد المحرك في ملف واحد باسم `ksa.exe`. أوامر النص وJSON تستخدم runtime C++، بينما يبقى `--editor` و`--play` و`--say` على Python لأنها تحتاج واجهة pygame أو تكامل LLM.
-
-لبناء runtime C++ محليًا على Linux أو Windows:
+## Native build
 
 ```bash
 cmake -S cpp -B build/native -DCMAKE_BUILD_TYPE=Release
@@ -58,45 +58,15 @@ cmake --build build/native --config Release
 ctest --test-dir build/native --output-on-failure
 ```
 
-بعد البناء، انقر مرتين على `dist\KSA.exe` لتشغيل المحرر مباشرة.
+## Download website
 
-## AI فعلي غير محدود
-
-لجعل الحوار يعتمد على نموذج لغوي حقيقي بدل القواعد الاحتياطية، شغّل Ollama وثبّت نموذجًا ثم عرّف:
+The static download page lives in `website/index.html` and is deployed to GitHub Pages by `.github/workflows/deploy-website.yml`. Push a version tag such as `v0.1.0` to build Windows and publish `KSA.exe` to the GitHub Release. The website's download button then resolves to the latest release asset.
 
 ```bash
-ollama serve
-ollama pull llama3.2
-export KSA_LLM_BASE_URL=http://127.0.0.1:11434/api
-export KSA_LLM_MODEL=llama3.2
-python -m ksa_engine "رجل مخطوف داخل قلعة" --say "أريد التفاوض مع الخاطف" --json
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-يمكن أيضًا استخدام أي endpoint متوافق مع OpenAI عبر `KSA_LLM_BASE_URL` و`KSA_LLM_API_KEY`. النموذج يرى وصف العالم وسجل الحوار، ويرجع كلامًا حرًا وأفعالًا آمنة مثل إضافة NPC أو تغيير الهدف. بدون endpoint مضبوط سيظهر اسم المزود `NarrativeAI` كخطة احتياطية، وليس AI عامًا.
+## Engineering position
 
-في وضع `--play` يعمل العرض ثلاثي الأبعاد: استخدم `WASD` أو الأسهم للحركة و`ESC` للخروج. يتطلب الوضع الرسومي بيئة سطح مكتب متاحة.
-في وضع `--editor` اكتب وصف العالم، ثم استخدم `GENERATE WORLD` للتوليد، و`PLAY 3D` للتجربة، و`SAVE PROJECT` لحفظ ملف `ksa_project.json`.
-في المثال السردي سيضيف المحرك رهينة وخاطفًا وهدف إنقاذ، وستظهر جملة الرهينة تلقائيًا: `تكفى ساعدني!`.
-
-## Python
-
-```bash
-python -m ksa_engine.demo
-python -m pytest
-```
-
-مثال:
-
-```python
-from ksa_engine import Engine, TextToWorldGenerator
-from ksa_engine.systems import AnimationSystem, CameraController
-
-world = TextToWorldGenerator().generate("مدينة صحراوية ليلية فيها واحة ومعركة")
-engine = Engine()
-engine.add_system(CameraController())
-engine.add_system(AnimationSystem())
-engine.load_world(world)
-engine.run_for(1.0)
-```
-
-هذه النسخة أصبحت نموذجًا ثلاثي الأبعاد قابلًا للتشغيل مع محرر لصناعة الألعاب.
+This is a focused foundation, not a claim of being one of the world's top six engines. Reaching that level requires a long-term production roadmap: GPU-backed rendering, asset import pipelines, editor undo/redo, reflection and serialization schemas, profiling, platform packaging, networking, documentation, and a large test and tooling ecosystem. The rebuilt core establishes the boundaries needed to grow toward those goals without coupling the runtime to content generation.

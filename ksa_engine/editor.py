@@ -1,184 +1,118 @@
-from __future__ import annotations
+"""Minimal English scene editor built around the runtime scene model."""
 
-import json
-from pathlib import Path
+from __future__ import annotations
 
 import pygame
 
 from .demo import build_engine
-from .renderer3d import run_game_3d
+from .scene_io import save_scene
 
 
 class KSAEditor:
-    """A lightweight visual game-making workspace for the KSA vertical slice."""
+    width, height = 1440, 860
 
-    width = 1440
-    height = 860
-
-    def __init__(self, description: str = "مدينة صحراوية ليلية فيها واحة ومعركة") -> None:
+    def __init__(self, engine=None) -> None:
         pygame.init()
-        pygame.display.set_caption("KSA ENGINE | محرر صناعة الألعاب")
+        pygame.display.set_caption("KSA Engine Beta | Scene Editor")
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 24)
-        self.heading = pygame.font.Font(None, 42)
-        self.small = pygame.font.Font(None, 20)
-        self.description = description
-        self.cursor = len(description)
-        self.engine = build_engine(description)
-        self.status = "العالم جاهز. عدّل الوصف ثم اضغط توليد العالم."
+        self.font = pygame.font.Font(None, 22)
+        self.heading = pygame.font.Font(None, 34)
+        self.engine = engine or build_engine()
+        self.selected_id: int | None = None
         self.running = True
-        self.editing = True
+        self.status = "Ready"
 
     def run(self) -> None:
         while self.running:
             self._events()
+            self.engine.update(min(self.clock.tick(60) / 1000.0, 0.1))
             self._draw()
-            self.clock.tick(60)
         pygame.quit()
 
     def _events(self) -> None:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 self._key_down(event)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self._click(event.pos)
+                self._select_from_outliner(event.pos)
 
     def _key_down(self, event: pygame.event.Event) -> None:
-        if event.key == pygame.K_ESCAPE:
-            self.running = False
-        elif event.key == pygame.K_BACKSPACE and self.editing:
-            self.description = self.description[: max(0, self.cursor - 1)] + self.description[self.cursor :]
-            self.cursor = max(0, self.cursor - 1)
-        elif event.key == pygame.K_DELETE and self.editing:
-            self.description = self.description[: self.cursor] + self.description[self.cursor + 1 :]
-        elif event.key == pygame.K_LEFT and self.editing:
-            self.cursor = max(0, self.cursor - 1)
-        elif event.key == pygame.K_RIGHT and self.editing:
-            self.cursor = min(len(self.description), self.cursor + 1)
-        elif event.key == pygame.K_RETURN:
-            self._generate()
-        elif self.editing and event.unicode and event.unicode.isprintable():
-            self.description = self.description[: self.cursor] + event.unicode + self.description[self.cursor :]
-            self.cursor += len(event.unicode)
+        if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
+            save_scene(self.engine.scene, "scene.json")
+            self.status = "Saved scene.json"
+        elif self.selected_id is not None and event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN):
+            entity = self.engine.scene.entity(self.selected_id)
+            if entity:
+                amount = 0.25
+                x = -amount if event.key == pygame.K_LEFT else amount if event.key == pygame.K_RIGHT else 0.0
+                z = -amount if event.key == pygame.K_UP else amount if event.key == pygame.K_DOWN else 0.0
+                position = entity.transform.position
+                entity.transform.position = type(position)(position.x + x, position.y, position.z + z)
+                self.status = f"Moved {entity.name}"
 
-    def _click(self, position: tuple[int, int]) -> None:
-        x, y = position
-        if 32 <= x <= 1020 and 112 <= y <= 174:
-            self.editing = True
-        elif 32 <= x <= 220 and 196 <= y <= 246:
-            self._generate()
-        elif 238 <= x <= 426 and 196 <= y <= 246:
-            self._save_project()
-        elif 444 <= x <= 632 and 196 <= y <= 246:
-            pygame.display.quit()
-            run_game_3d(self.engine)
-            pygame.display.set_mode((self.width, self.height))
-        elif 32 <= x <= 220 and 790 <= y <= 838:
-            self.running = False
-
-    def _generate(self) -> None:
-        if self.description.strip():
-            self.engine = build_engine(self.description)
-            self.status = f"تم توليد {len(self.engine.world.entities)} عناصر من وصفك."
-            self.cursor = len(self.description)
-
-    def _save_project(self) -> None:
-        world = self.engine.world
-        if world is None:
+    def _select_from_outliner(self, position: tuple[int, int]) -> None:
+        if position[0] < 1040 or position[1] < 145:
             return
-        project = {
-            "name": world.name,
-            "seed": world.seed,
-            "description": self.description,
-            "metadata": world.metadata,
-            "entities": [
-                {
-                    "id": entity.id,
-                    "name": entity.name,
-                    "kind": entity.kind,
-                    "position": vars(entity.transform.position),
-                    "components": entity.components,
-                }
-                for entity in world.entities.values()
-            ],
-        }
-        Path("ksa_project.json").write_text(json.dumps(project, ensure_ascii=False, indent=2), encoding="utf-8")
-        self.status = "تم حفظ المشروع في ksa_project.json"
+        index = (position[1] - 145) // 30
+        entities = list(self.engine.scene.entities.values())
+        if 0 <= index < len(entities):
+            self.selected_id = entities[index].id
 
     def _draw(self) -> None:
-        self.screen.fill((18, 25, 39))
-        pygame.draw.rect(self.screen, (12, 18, 30), (0, 0, self.width, 80))
-        pygame.draw.rect(self.screen, (24, 33, 50), (24, 96, 1010, 82), border_radius=6)
-        pygame.draw.rect(self.screen, (27, 38, 56), (24, 188, 1010, 570), border_radius=6)
-        pygame.draw.rect(self.screen, (27, 38, 56), (1054, 96, 356, 662), border_radius=6)
-        self._text("KSA ENGINE", (28, 20), self.heading, (244, 201, 101))
-        self._text("محرر صناعة الألعاب", (260, 31), self.small, (164, 181, 198))
-        self._text("اكتب وصف عالم لعبتك", (40, 108), self.small, (166, 186, 205))
-        self._text(self.description or "اكتب وصف العالم...", (40, 135), self.font, (240, 240, 230))
-        if self.editing and pygame.time.get_ticks() % 1000 < 500:
-            cursor_x = 40 + self.font.size(self.description[: self.cursor])[0]
-            pygame.draw.line(self.screen, (244, 201, 101), (cursor_x, 132), (cursor_x, 158), 2)
-        self._button("توليد العالم", (32, 196), (188, 50), (74, 126, 108))
-        self._button("حفظ المشروع", (238, 196), (188, 50), (65, 96, 130))
-        self._button("تشغيل ثلاثي الأبعاد", (444, 196), (188, 50), (142, 95, 61))
-        self._draw_preview()
+        self.screen.fill((20, 24, 30))
+        pygame.draw.rect(self.screen, (29, 34, 42), (0, 0, self.width, 64))
+        pygame.draw.rect(self.screen, (25, 30, 37), (0, 64, 1040, self.height - 64))
+        pygame.draw.rect(self.screen, (34, 39, 47), (1040, 64, 400, self.height - 64))
+        self._text("KSA ENGINE BETA", (24, 18), self.heading, (235, 190, 90))
+        self._text("Scene Editor", (300, 24), self.font, (180, 190, 202))
+        self._draw_viewport()
+        self._draw_outliner()
         self._draw_inspector()
-        self._text(self.status, (32, 775), self.small, (176, 192, 202))
-        self._button("خروج", (32, 790), (188, 48), (104, 59, 67))
         pygame.display.flip()
 
-    def _draw_preview(self) -> None:
-        preview = pygame.Rect(42, 270, 974, 450)
-        pygame.draw.rect(self.screen, (34, 52, 62), preview)
-        for x in range(preview.left, preview.right, 42):
-            pygame.draw.line(self.screen, (42, 68, 72), (x, preview.top), (x, preview.bottom), 1)
-        for y in range(preview.top, preview.bottom, 42):
-            pygame.draw.line(self.screen, (42, 68, 72), (preview.left, y), (preview.right, y), 1)
-        world = self.engine.world
-        if world is None:
-            return
-        entities = list(world.entities.values())
-        for index, entity in enumerate(entities):
-            x = preview.left + 80 + (index * 113) % (preview.width - 120)
-            y = preview.top + 80 + ((index * 71) % (preview.height - 130))
-            color = {"building": (173, 112, 68), "character": (223, 181, 75), "npc": (72, 166, 179), "vegetation": (65, 135, 78), "light": (239, 200, 105), "camera": (186, 193, 205)}.get(entity.kind, (112, 135, 150))
-            pygame.draw.circle(self.screen, color, (x, y), 12 if entity.kind != "building" else 18)
-        self._text("معاينة العالم", (58, 286), self.small, (224, 229, 218))
+    def _draw_viewport(self) -> None:
+        viewport = pygame.Rect(28, 96, 984, 650)
+        pygame.draw.rect(self.screen, (47, 58, 63), viewport)
+        for x in range(viewport.left, viewport.right, 40):
+            pygame.draw.line(self.screen, (55, 68, 71), (x, viewport.top), (x, viewport.bottom))
+        for y in range(viewport.top, viewport.bottom, 40):
+            pygame.draw.line(self.screen, (55, 68, 71), (viewport.left, y), (viewport.right, y))
+        for entity in self.engine.scene.find():
+            if entity.kind in {"camera", "light"}:
+                continue
+            position = entity.transform.position
+            screen_position = (int(viewport.centerx + position.x * 45), int(viewport.centery - position.z * 45))
+            color = (225, 185, 85) if entity.id == self.selected_id else (120, 175, 190)
+            pygame.draw.rect(self.screen, color, (*screen_position, 24, 24))
+        self._text("Viewport", (44, 110), self.font, (220, 225, 220))
+        self._text(self.status, (28, 780), self.font, (155, 170, 182))
+
+    def _draw_outliner(self) -> None:
+        self._text("Outliner", (1060, 90), self.heading, (235, 190, 90))
+        for index, entity in enumerate(self.engine.scene.entities.values()):
+            color = (235, 190, 90) if entity.id == self.selected_id else (210, 218, 224)
+            self._text(f"{entity.id:02d}  {entity.name}  [{entity.kind}]", (1060, 145 + index * 30), self.font, color)
 
     def _draw_inspector(self) -> None:
-        world = self.engine.world
-        if world is None:
-            return
-        self._text("معلومات العالم", (1076, 120), self.font, (244, 201, 101))
-        lines = [
-            f"البذرة: {world.seed}",
-            f"العناصر: {len(world.entities)}",
-            f"التضاريس: {world.metadata.get('terrain', 'غير معروف')}",
-            f"الوقت: {world.metadata.get('time_of_day', 'نهار')}",
-            "",
-            "مدير القصة",
-            f"النية: {world.metadata.get('narrative', {}).get('intent', 'لا يوجد')}",
-            f"الهدف: {world.metadata.get('narrative', {}).get('objective', '')}",
-            "",
-            "العناصر",
-        ]
+        top = 470
+        self._text("Details", (1060, top), self.heading, (235, 190, 90))
+        entity = self.engine.scene.entity(self.selected_id) if self.selected_id else None
+        lines = ["Select an entity" if entity is None else f"Name: {entity.name}", "", "Transform"]
+        if entity:
+            position = entity.transform.position
+            lines += [f"Position  {position.x:.2f}, {position.y:.2f}, {position.z:.2f}", f"Parent    {entity.transform.parent_id or 'None'}", f"Components {len(entity.components)}"]
         for index, line in enumerate(lines):
-            self._text(line, (1076, 166 + index * 27), self.small, (208, 218, 224))
-        for index, entity in enumerate(list(world.entities.values())[:8]):
-            self._text(f"{entity.id:02d}  {entity.kind:<12} {entity.name[:18]}", (1076, 485 + index * 25), self.small, (157, 180, 192))
-
-    def _button(self, label: str, position: tuple[int, int], size: tuple[int, int], color: tuple[int, int, int]) -> None:
-        rect = pygame.Rect(position, size)
-        pygame.draw.rect(self.screen, color, rect, border_radius=5)
-        text = self.small.render(label, True, (248, 248, 238))
-        self.screen.blit(text, text.get_rect(center=rect.center))
+            self._text(line, (1060, top + 52 + index * 26), self.font, (205, 215, 220))
+        self._text("Content Browser", (1060, 670), self.heading, (235, 190, 90))
+        self._text("assets/", (1060, 720), self.font, (205, 215, 220))
+        self._text("scene.json  |  materials  |  meshes", (1060, 748), self.font, (150, 165, 175))
 
     def _text(self, value: str, position: tuple[int, int], font: pygame.font.Font, color: tuple[int, int, int]) -> None:
         self.screen.blit(font.render(value, True, color), position)
 
 
-def run_editor(description: str | None = None) -> None:
-    KSAEditor(description or "مدينة صحراوية ليلية فيها واحة ومعركة").run()
+def run_editor(engine=None) -> None:
+    KSAEditor(engine).run()

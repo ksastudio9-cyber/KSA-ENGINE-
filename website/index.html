@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Download KSA Engine Beta for Windows.">
+  <meta name="theme-color" content="#111827">
+  <title>KSA Engine Beta | Windows Runtime</title>
+  <style>
+    :root { --ink:#10212b; --muted:#5e7077; --paper:#f5f1e8; --panel:#fffdf8; --line:#d9d7ce; --gold:#d49a36; --teal:#126c6b; --coral:#bd604d; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family: Georgia, 'Times New Roman', serif; }
+    a { color:inherit; }
+    .shell { width:min(1180px, calc(100% - 48px)); margin:auto; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:28px 0; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:12px; text-decoration:none; font:700 14px/1.1 Arial, sans-serif; letter-spacing:.12em; }
+    .mark { display:grid; place-items:center; width:34px; height:34px; color:#fff; background:var(--teal); border-radius:50%; font:700 19px Georgia, serif; }
+    nav { display:flex; gap:24px; font:600 13px Arial, sans-serif; color:var(--muted); }
+    nav a { text-decoration:none; }
+    nav a:hover { color:var(--coral); }
+    .hero { min-height:590px; display:grid; grid-template-columns:1.08fr .92fr; align-items:center; gap:72px; padding:72px 0 82px; }
+    .eyebrow { color:var(--coral); font:700 12px Arial, sans-serif; letter-spacing:.16em; text-transform:uppercase; }
+    h1 { max-width:650px; margin:18px 0 22px; font-size:clamp(48px, 7vw, 86px); line-height:.94; font-weight:500; letter-spacing:-.02em; }
+    .lede { max-width:520px; margin:0; color:var(--muted); font-size:20px; line-height:1.5; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:34px; }
+    .button { display:inline-flex; align-items:center; gap:10px; min-height:52px; padding:0 20px; border:1px solid var(--ink); border-radius:3px; font:700 13px Arial, sans-serif; text-decoration:none; transition:transform .18s ease, box-shadow .18s ease; }
+    .button:hover { transform:translateY(-2px); box-shadow:4px 4px 0 var(--ink); }
+    .button.primary { color:#fff; background:var(--teal); border-color:var(--teal); }
+    .button.secondary { background:transparent; }
+    .download-icon { font-size:19px; }
+    .note { margin-top:16px; color:var(--muted); font:12px Arial, sans-serif; }
+    .device { position:relative; min-height:390px; padding:28px; background:var(--panel); border:1px solid var(--line); box-shadow:18px 18px 0 #e5dfd1; transform:rotate(2deg); }
+    .device:before { content:''; position:absolute; width:90px; height:10px; top:-1px; left:28px; background:var(--gold); }
+    .device-top { display:flex; justify-content:space-between; color:var(--muted); font:11px Arial, sans-serif; text-transform:uppercase; letter-spacing:.1em; }
+    .scene { position:relative; height:250px; margin-top:30px; overflow:hidden; background:#173f48; }
+    .scene:before { content:''; position:absolute; inset:42% -15% -30%; background:#d29b59; transform:rotate(-8deg); }
+    .sun { position:absolute; top:32px; right:42px; width:68px; height:68px; border-radius:50%; background:#efc56d; }
+    .grid { position:absolute; inset:48% 0 0; background:linear-gradient(transparent 95%, rgba(16,33,43,.24) 95%), linear-gradient(90deg, transparent 95%, rgba(16,33,43,.24) 95%); background-size:28px 28px; transform:perspective(150px) rotateX(35deg); transform-origin:top; }
+    .scene-label { position:absolute; bottom:16px; left:16px; color:#fff; font:700 11px Arial, sans-serif; letter-spacing:.12em; }
+    .specs { display:grid; grid-template-columns:repeat(3, 1fr); gap:1px; margin-bottom:92px; background:var(--line); border:1px solid var(--line); }
+    .spec { min-height:130px; padding:24px; background:var(--panel); }
+    .spec strong { display:block; margin-bottom:10px; color:var(--coral); font:700 13px Arial, sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+    .spec span { color:var(--muted); font-size:16px; line-height:1.45; }
+    section { padding:74px 0; border-top:1px solid var(--line); }
+    h2 { margin:0 0 34px; font-size:42px; font-weight:500; }
+    .columns { display:grid; grid-template-columns:1fr 1fr; gap:70px; }
+    .columns p { margin:0; color:var(--muted); font-size:18px; line-height:1.65; }
+    .requirements { padding-left:20px; color:var(--muted); font:15px/2 Arial, sans-serif; }
+    footer { padding:32px 0 54px; color:var(--muted); font:12px Arial, sans-serif; }
+    @media (max-width:760px) { .shell { width:min(100% - 32px, 600px); } header { align-items:flex-start; } nav { gap:12px; font-size:11px; } .hero { grid-template-columns:1fr; gap:42px; padding:54px 0 70px; } h1 { font-size:56px; } .device { min-height:330px; } .scene { height:205px; } .specs, .columns { grid-template-columns:1fr; gap:1px; } h2 { font-size:36px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="."><span class="mark">K</span>KSA ENGINE BETA</a>
+      <nav aria-label="Primary"><a href="#engine">Engine</a><a href="#requirements">Requirements</a><a href="https://github.com/loloxrx-eng/KSA-ENGINE-" target="_blank" rel="noreferrer">GitHub</a></nav>
+    </header>
+
+    <main>
+      <section class="hero" id="engine">
+        <div>
+          <div class="eyebrow">Developer runtime / Windows</div>
+          <h1>Build worlds that stay under your control.</h1>
+          <p class="lede">KSA Engine Beta is a focused, modular game engine for authored scenes, fast iteration, and a runtime you can actually understand.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/loloxrx-eng/KSA-ENGINE-/releases/latest/download/KSA.exe"><span class="download-icon">↓</span>Download for Windows</a>
+            <a class="button secondary" href="https://github.com/loloxrx-eng/KSA-ENGINE-/releases/latest" target="_blank" rel="noreferrer">View release notes</a>
+          </div>
+          <p class="note">Windows 10/11 · 64-bit · Latest stable release</p>
+        </div>
+        <div class="device" aria-label="KSA Engine editor preview">
+          <div class="device-top"><span>Scene Editor</span><span>60 FPS</span></div>
+          <div class="scene"><span class="sun"></span><span class="grid"></span><span class="scene-label">KSA / SANDBOX.SCENE</span></div>
+          <div class="device-top" style="margin-top:22px"><span>Viewport · Outliner · Details</span><span>Beta</span></div>
+        </div>
+      </section>
+
+      <div class="specs" aria-label="Engine capabilities">
+        <div class="spec"><strong>Runtime</strong><span>Fixed-step simulation with predictable frame behavior.</span></div>
+        <div class="spec"><strong>Scene graph</strong><span>Entities, transforms, components, and JSON scene files.</span></div>
+        <div class="spec"><strong>Tools</strong><span>English editor with viewport, outliner, details, and assets.</span></div>
+      </div>
+
+      <section>
+        <div class="columns">
+          <div><h2>Small core.<br>Serious boundaries.</h2></div>
+          <p>The engine keeps its systems separate: physics, camera, events, resources, rendering, and editor tools. That makes the runtime easier to profile, extend, and replace as your project grows.</p>
+        </div>
+      </section>
+
+      <section id="requirements">
+        <h2>Before you install</h2>
+        <ul class="requirements">
+          <li>Windows 10 or Windows 11, 64-bit</li>
+          <li>No Python installation required for the packaged EXE</li>
+          <li>Download releases only from the official KSA Engine repository</li>
+          <li>The download link becomes active after the first tagged GitHub Release is published</li>
+        </ul>
+        <div class="actions"><a class="button primary" href="https://github.com/loloxrx-eng/KSA-ENGINE-/releases/latest/download/KSA.exe"><span class="download-icon">↓</span>Get KSA.exe</a></div>
+      </section>
+    </main>
+
+    <footer>© 2026 KSA Engine · Built for developers · <a href="https://github.com/loloxrx-eng/KSA-ENGINE-" target="_blank" rel="noreferrer">Source on GitHub</a></footer>
+  </div>
+</body>
+</html>

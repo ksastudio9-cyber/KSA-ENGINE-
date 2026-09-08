@@ -1,52 +1,57 @@
-from ksa_engine import Engine, TextToWorldGenerator
-from ksa_engine.systems import AnimationSystem, AudioSystem, CameraController, LightingSystem, SceneComposer
-from ksa_engine.systems import NarrativeSystem
-from ksa_engine.llm import LLMNarrativeAI
+import tempfile
+from pathlib import Path
+
+from ksa_engine import Engine, PhysicsBody, PhysicsSystem, Scene, Transform, Vector3, load_scene, save_scene
+from ksa_engine.events import EventBus
 
 
-def test_text_generates_complete_scene_deterministically():
-    description = "مدينة صحراوية ليلية فيها واحة ومعركة"
-    first = TextToWorldGenerator().generate(description, seed=42)
-    second = TextToWorldGenerator().generate(description, seed=42)
+def test_fixed_timestep_and_scene_entities():
+    scene = Scene("Test Scene")
+    entity = scene.create_entity("Player", "player", Transform(Vector3(1, 2, 3)))
+    calls = []
 
-    assert first.seed == second.seed == 42
-    assert len(first.entities) == len(second.entities)
-    assert first.metadata["audio"]["music"] == "battle_theme"
-    assert first.find_by_kind("camera")[0].components["target_id"] is not None
-    assert first.find_by_kind("light")
+    class System:
+        def on_start(self, engine):
+            calls.append("start")
 
+        def on_fixed_update(self, engine, delta):
+            calls.append("fixed")
 
-def test_engine_updates_camera_animation_and_audio():
-    world = TextToWorldGenerator().generate("desert combat", seed=5)
+        def on_update(self, engine, delta):
+            calls.append("frame")
+
     engine = Engine()
-    engine.add_system(CameraController())
-    engine.add_system(SceneComposer())
-    engine.add_system(LightingSystem())
-    engine.add_system(AudioSystem())
-    engine.add_system(AnimationSystem())
-    engine.load_world(world)
+    engine.add_system(System())
+    engine.load_scene(scene)
+    engine.update(1 / 30)
 
-    engine.run_for(0.5)
-
-    assert world.elapsed_time == 0.5
-    assert world.metadata["audio"]["last_update"] == world.elapsed_time
-    assert world.find_by_kind("character")[0].components["animation"]["time"] > 0
+    assert entity.id == 1
+    assert calls == ["start", "fixed", "fixed", "frame"]
+    assert engine.elapsed_time == 2 / 60
 
 
-def test_narrative_ai_adds_hostage_and_answers_player():
-    world = TextToWorldGenerator().generate("رجل مخطوف داخل قلعة", seed=4)
-    narrative_system = NarrativeSystem()
+def test_physics_gravity_and_scene_round_trip():
+    scene = Scene("Physics")
+    player = scene.create_entity("Player", "player", Transform(Vector3(0, 2, 0)), physics=PhysicsBody())
+    engine = Engine()
+    engine.add_system(PhysicsSystem())
+    engine.load_scene(scene)
+    engine.run_for(1.0)
+    assert player.transform.position.y == 0.0
 
-    narrative_system.start(world)
-    response = narrative_system.say(world, "سأساعدك وأنقذك")
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "scene.json"
+        save_scene(scene, path)
+        restored = load_scene(path)
+        assert restored.name == "Physics"
+        assert restored.entity(player.id).name == "Player"
 
-    assert world.metadata["narrative"]["intent"] == "rescue_hostage"
-    assert world.find_by_kind("npc")[0].components["dialogue"][0] == "تكفى ساعدني!"
-    assert "المفتاح" in response
 
-
-def test_llm_response_can_drive_world_actions_without_network():
-    payload = '{"reply":"وجدت لك حليفًا.","world_actions":[{"action":"spawn_entity","name":"Ally","kind":"npc","role":"ally","dialogue":"أنا معك."}]}'
-    response = LLMNarrativeAI._decode(payload)
-    assert response["reply"] == "وجدت لك حليفًا."
-    assert response["world_actions"][0]["name"] == "Ally"
+def test_event_bus_dispatches_queued_events():
+    events = EventBus()
+    received = []
+    events.subscribe("hit", lambda event: received.append(event.payload["damage"]))
+    events.publish("hit", damage=12)
+    assert received == []
+    events.flush()
+    assert received == [12]
