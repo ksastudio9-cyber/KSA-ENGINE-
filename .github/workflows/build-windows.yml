@@ -27,9 +27,9 @@ jobs:
       - name: Stage native KSA ENGINE.exe
         shell: pwsh
         run: |
-          $nativeExecutable = Join-Path $PWD 'build/native/Release/KSA ENGINE.exe'
+          $nativeExecutable = Join-Path $PWD 'build/native/Release/KSA.exe'
           if (-not (Test-Path $nativeExecutable)) {
-            $nativeExecutable = Join-Path $PWD 'build/native/KSA ENGINE.exe'
+            $nativeExecutable = Join-Path $PWD 'build/native/KSA.exe'
           }
           if (-not (Test-Path $nativeExecutable)) { throw "Missing native runtime: $nativeExecutable" }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
