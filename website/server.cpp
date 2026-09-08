@@ -62,7 +62,7 @@ void reply(Socket socket, int status, const std::string& type, const std::string
             << "Content-Length: " << body.size() << "\r\n"
             << "X-Content-Type-Options: nosniff\r\n"
             << "Cache-Control: public, max-age=300\r\n";
-    if (download) headers << "Content-Disposition: attachment; filename=KSA.exe\r\n";
+    if (download) headers << "Content-Disposition: attachment; filename=\"KSA ENGINE.exe\"\r\n";
     headers << "Connection: close\r\n\r\n";
     send_all(socket, headers.str() + body);
 }

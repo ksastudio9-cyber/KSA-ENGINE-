@@ -4,7 +4,7 @@ $project = (Resolve-Path (Join-Path $PSScriptRoot '.')).Path
 $desktop = [Environment]::GetFolderPath('Desktop')
 $shortcutPath = Join-Path $desktop 'KSA ENGINE.lnk'
 $target = Join-Path $project 'launch_ksa_engine.bat'
-$packagedTarget = Join-Path $project 'dist\KSA.exe'
+$packagedTarget = Join-Path $project 'dist\KSA ENGINE.exe'
 if (Test-Path $packagedTarget) {
     $target = $packagedTarget
 }

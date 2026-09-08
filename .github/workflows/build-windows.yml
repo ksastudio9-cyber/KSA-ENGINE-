@@ -24,30 +24,30 @@ jobs:
           cmake --build build/native --config Release --parallel
           ctest --test-dir build/native --build-config Release --output-on-failure
 
-      - name: Stage native KSA.exe
+      - name: Stage native KSA ENGINE.exe
         shell: pwsh
         run: |
-          $nativeExecutable = Join-Path $PWD 'build/native/Release/KSA.exe'
+          $nativeExecutable = Join-Path $PWD 'build/native/Release/KSA ENGINE.exe'
           if (-not (Test-Path $nativeExecutable)) {
-            $nativeExecutable = Join-Path $PWD 'build/native/KSA.exe'
+            $nativeExecutable = Join-Path $PWD 'build/native/KSA ENGINE.exe'
           }
           if (-not (Test-Path $nativeExecutable)) { throw "Missing native runtime: $nativeExecutable" }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item $nativeExecutable 'dist/KSA.exe' -Force
+          Copy-Item $nativeExecutable 'dist/KSA ENGINE.exe' -Force
 
       - name: Verify artifact
         shell: pwsh
         run: |
-          if (-not (Test-Path 'dist/KSA.exe')) {
-            throw 'dist/KSA.exe was not produced.'
+          if (-not (Test-Path 'dist/KSA ENGINE.exe')) {
+            throw 'dist/KSA ENGINE.exe was not produced.'
           }
-          Get-Item 'dist/KSA.exe' | Select-Object FullName, Length
+          Get-Item 'dist/KSA ENGINE.exe' | Select-Object FullName, Length
 
-      - name: Upload ksa.exe
+      - name: Upload KSA ENGINE.exe
         uses: actions/upload-artifact@v4
         with:
           name: KSA-windows
-          path: dist/KSA.exe
+          path: dist/KSA ENGINE.exe
           if-no-files-found: error
 
       - name: Publish GitHub Release asset
@@ -55,4 +55,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: dist/KSA.exe
+          files: dist/KSA ENGINE.exe

@@ -36,7 +36,7 @@ The native C++17 runtime is the only engine path. It includes the headless runti
 
 The browser-based 3D editor is available at `website/editor.html`. It uses WebGL for a live block world with free camera controls, WASD movement, selection, transform gizmos, block creation/duplication/deletion, resize/rotation/position controls, image textures, and JSON map save/load. It is intentionally separate from the native runtime until the native GPU backend is introduced.
 
-On Windows, `KSA --editor` now builds the native SDL2/OpenGL editor into the EXE. The native editor supports a free orbit camera (`WASD`, right mouse drag, wheel zoom), `B` to create a block, `Tab` to select the next block, `Delete` to remove the selected block, arrow keys to transform the selected block, and `1`/`2`/`3` for move/rotate/scale modes. The Windows CI fetches SDL2 and validates the native runtime tests before packaging `KSA.exe`.
+On Windows, `KSA ENGINE.exe --editor` builds the native SDL2/OpenGL editor into the EXE. The native editor supports a free orbit camera (`WASD`, right mouse drag, wheel zoom), `B` to create a block, `Tab` to select the next block, `Delete` to remove the selected block, arrow keys to transform the selected block, and `1`/`2`/`3` for move/rotate/scale modes. The Windows CI fetches SDL2 and validates the native runtime tests before packaging `KSA ENGINE.exe`.
 
 `--render frame.ppm` uses the built-in deterministic software renderer. It produces a real 640x360 framebuffer with a sky gradient, directional sun lighting, material shading, camera projection, and a simple shadow darkening pass. `RenderSettings::shadow_map_size` defaults to 2048 for the renderer contract; a GPU shadow-map backend and HDR/cloud texture pipeline remain separate production work.
 
@@ -64,11 +64,11 @@ cmake --install build/native --prefix ./dist/native
 
 ## Independent download website
 
-The website in `website/` does not depend on GitHub. Put `KSA.exe` in `website/downloads/` and serve it from your own VPS, object storage bucket, or hosting provider:
+The website in `website/` does not depend on GitHub. Put `KSA ENGINE.exe` in `website/downloads/` and serve it from your own VPS, object storage bucket, or hosting provider:
 
 Serve the static files with any web server, for example `cmake`-built deployment tooling, Nginx, or Caddy.
 
-The site is available at `/` and the direct installer path is `/downloads/KSA.exe`. See [website/README.md](website/README.md) for the production reverse-proxy setup. The binary is intentionally ignored by Git so it can be deployed independently from the source repository.
+The site is available at `/` and the direct installer path is `/downloads/KSA%20ENGINE.exe`. See [website/README.md](website/README.md) for the production reverse-proxy setup. The binary is intentionally ignored by Git so it can be deployed independently from the source repository.
 
 ## Engineering position
 

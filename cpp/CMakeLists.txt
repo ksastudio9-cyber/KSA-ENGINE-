@@ -57,7 +57,7 @@ if (KSA_ENABLE_SANITIZERS AND NOT MSVC)
     target_compile_options(ksa_engine_cpp PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(ksa_engine_cpp PRIVATE -fsanitize=address,undefined)
 endif()
-set_target_properties(ksa_engine_cpp PROPERTIES OUTPUT_NAME "KSA")
+set_target_properties(ksa_engine_cpp PROPERTIES OUTPUT_NAME "KSA ENGINE")
 
 add_executable(ksa_download_server ../website/server.cpp)
 if (WIN32)

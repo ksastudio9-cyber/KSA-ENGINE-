@@ -105,6 +105,14 @@ struct PhysicsBody {
     bool is_trigger{false};
 };
 
+struct RegionComponent {
+    std::string name{"Region"};
+    std::string type{"region"};
+    Vec3 center{};
+    Vec3 extent{1.0, 1.0, 1.0};
+    bool enabled{true};
+};
+
 struct Entity {
     std::uint64_t id{0};
     std::string name;
@@ -116,6 +124,7 @@ struct Entity {
     std::unique_ptr<CameraComponent> camera;
     std::unique_ptr<LightComponent> light;
     std::unique_ptr<PhysicsBody> physics;
+    std::unique_ptr<RegionComponent> region;
     std::optional<std::uint64_t> target_id;
 
     Entity() = default;
@@ -125,16 +134,29 @@ struct Entity {
 
 class Scene {
 public:
+    struct PrefabNode {
+        std::string name;
+        std::string kind{"entity"};
+        Transform transform{};
+    };
+    using PrefabDefinition = std::vector<PrefabNode>;
+
     explicit Scene(std::string name = "Untitled");
 
     Entity& create_entity(std::string name, std::string kind = "entity", Transform transform = {});
     Entity& create_entity_with_id(std::uint64_t id, std::string name, std::string kind = "entity", Transform transform = {});
+    Entity& create_region(std::string name, Vec3 center, Vec3 extent, std::string type = "region");
     void destroy_entity(std::uint64_t id);
     Entity* find(std::uint64_t id);
     const Entity* find(std::uint64_t id) const;
     std::vector<Entity*> active_entities();
+    std::vector<Entity*> children(std::uint64_t parent_id);
+    std::vector<const Entity*> children(std::uint64_t parent_id) const;
     Vec3 world_position(std::uint64_t id) const;
     void set_parent(std::uint64_t id, std::uint64_t parent);
+    void register_prefab(std::string prefab_name, PrefabDefinition nodes);
+    Entity& instantiate_prefab(const std::string& prefab_name, std::string instance_name, Transform transform = {});
+    std::vector<std::string> prefab_names() const;
 
     const std::string& name() const;
     const std::unordered_map<std::uint64_t, Entity>& entities() const;
@@ -146,6 +168,8 @@ private:
     std::string name_;
     std::uint64_t next_id_{1};
     std::unordered_map<std::uint64_t, Entity> entities_;
+    std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> children_;
+    std::unordered_map<std::string, PrefabDefinition> prefabs_;
 };
 
 struct Event {
@@ -343,6 +367,18 @@ public:
     void set_paused(bool paused);
     void add_system(std::shared_ptr<System> system);
     void remove_system(const std::shared_ptr<System>& system);
+    void set_project_directory(std::string path);
+    const std::string& project_directory() const;
+    void set_project_name(std::string name);
+    const std::string& project_name() const;
+    void set_autosave_enabled(bool enabled);
+    bool autosave_enabled() const;
+    void set_autosave_interval(double seconds);
+    double autosave_interval() const;
+    bool save_project_state();
+    bool load_project_state();
+    std::string project_state_path() const;
+    std::string default_scene_path() const;
 
     Scene* scene();
     const Scene* scene() const;
@@ -363,6 +399,11 @@ private:
     std::unique_ptr<PhysicsSystem> physics_;
     std::vector<std::shared_ptr<System>> systems_;
     std::unique_ptr<SceneManager> scene_manager_;
+    std::string project_directory_{"."};
+    std::string project_name_{"KSA Project"};
+    bool autosave_enabled_{true};
+    double autosave_interval_{30.0};
+    double autosave_elapsed_{0.0};
     double accumulator_{0.0};
     bool paused_{false};
 };

@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -103,6 +104,39 @@ int main() {
     assert(restored_falling->transform.rotation.y == 20.0);
     assert(restored_falling->transform.scale.z == 4.0);
     std::remove(path.c_str());
+
+    const std::string project_dir = "runtime_project_state";
+    std::filesystem::remove_all(project_dir);
+    ksa_engine::Engine project_engine;
+    project_engine.load_scene(scene);
+    project_engine.set_project_directory(project_dir);
+    project_engine.set_autosave_enabled(true);
+    project_engine.set_autosave_interval(0.0);
+    assert(project_engine.save_project_state());
+    assert(std::filesystem::exists(project_dir + "/project_state.json"));
+    assert(std::filesystem::exists(project_dir + "/scenes/default_scene.json"));
+
+    ksa_engine::Engine loaded_project_engine;
+    loaded_project_engine.set_project_directory(project_dir);
+    assert(loaded_project_engine.load_project_state());
+    assert(loaded_project_engine.scene() != nullptr);
+    assert(loaded_project_engine.scene()->name() == "Test Scene");
+    std::filesystem::remove_all(project_dir);
+
+    auto region_scene = std::make_shared<ksa_engine::Scene>("Regions");
+    auto& danger_zone = region_scene->create_region("Danger Zone", {0.0, 0.0, 0.0}, {10.0, 10.0, 10.0}, "danger");
+    auto& zone_child = region_scene->create_entity("Zone Child", "mesh", {{2.0, 3.0, 4.0}, {}, {1.0, 1.0, 1.0}, 0});
+    region_scene->set_parent(zone_child.id, danger_zone.id);
+    assert(danger_zone.region != nullptr);
+    assert(danger_zone.region->type == "danger");
+    assert(region_scene->children(danger_zone.id).size() == 1);
+
+    region_scene->register_prefab("crate_box", {
+        {"Crate", "mesh", {{0.0, 0.0, 0.0}, {}, {1.0, 1.0, 1.0}, 0}}
+    });
+    auto& prefab_instance = region_scene->instantiate_prefab("crate_box", "Crate Instance", {{1.0, 1.0, 1.0}, {}, {1.5, 1.5, 1.5}, 0});
+    assert(prefab_instance.name == "Crate Instance");
+    assert(prefab_instance.transform.scale.x == 1.5);
 
     auto trigger_scene = std::make_shared<ksa_engine::Scene>("Triggers");
     auto& trigger_a = trigger_scene->create_entity("Trigger A", "trigger", {{0, 1, 0}, {}, {1, 1, 1}, 0});

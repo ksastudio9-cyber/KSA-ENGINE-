@@ -4,8 +4,9 @@
 #include <chrono>
 #include <cctype>
 #include <cmath>
-#include <iomanip>
+#include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iterator>
 #include <map>
 #include <sstream>
@@ -45,6 +46,7 @@ Entity::Entity(const Entity& other)
     if (other.camera) camera = std::make_unique<CameraComponent>(*other.camera);
     if (other.light) light = std::make_unique<LightComponent>(*other.light);
     if (other.physics) physics = std::make_unique<PhysicsBody>(*other.physics);
+    if (other.region) region = std::make_unique<RegionComponent>(*other.region);
 }
 
 Entity& Entity::operator=(const Entity& other) {
@@ -62,7 +64,9 @@ Entity& Scene::create_entity(std::string name, std::string kind, Transform trans
     entity.name = std::move(name);
     entity.kind = std::move(kind);
     entity.transform = transform;
-    return entities_.emplace(entity.id, std::move(entity)).first->second;
+    auto& created = entities_.emplace(entity.id, std::move(entity)).first->second;
+    children_[created.transform.parent].push_back(created.id);
+    return created;
 }
 
 Entity& Scene::create_entity_with_id(std::uint64_t id, std::string name, std::string kind, Transform transform) {
@@ -73,13 +77,35 @@ Entity& Scene::create_entity_with_id(std::uint64_t id, std::string name, std::st
     entity.kind = std::move(kind);
     entity.transform = transform;
     next_id_ = std::max(next_id_, id + 1);
-    return entities_.emplace(id, std::move(entity)).first->second;
+    auto& created = entities_.emplace(id, std::move(entity)).first->second;
+    children_[created.transform.parent].push_back(created.id);
+    return created;
+}
+
+Entity& Scene::create_region(std::string name, Vec3 center, Vec3 extent, std::string type) {
+    auto& region = create_entity(std::move(name), "region", {center, {}, {1.0, 1.0, 1.0}, 0});
+    region.region = std::make_unique<RegionComponent>();
+    region.region->name = region.name;
+    region.region->type = std::move(type);
+    region.region->center = center;
+    region.region->extent = extent;
+    region.region->enabled = true;
+    return region;
 }
 
 void Scene::destroy_entity(std::uint64_t id) {
+    if (children_.count(id) != 0U) {
+        for (const auto child_id : children_.at(id)) {
+            if (entities_.count(child_id) != 0U) entities_.at(child_id).transform.parent = 0;
+        }
+    }
     entities_.erase(id);
     for (auto& [entity_id, entity] : entities_) {
         if (entity.transform.parent == id) entity.transform.parent = 0;
+    }
+    for (auto& [parent_id, nodes] : children_) {
+        auto removed = std::remove(nodes.begin(), nodes.end(), id);
+        if (removed != nodes.end()) nodes.erase(removed, nodes.end());
     }
 }
 
@@ -98,6 +124,26 @@ std::vector<Entity*> Scene::active_entities() {
     result.reserve(entities_.size());
     for (auto& [id, entity] : entities_) if (entity.active) result.push_back(&entity);
     std::sort(result.begin(), result.end(), [](const Entity* left, const Entity* right) { return left->id < right->id; });
+    return result;
+}
+
+std::vector<Entity*> Scene::children(std::uint64_t parent_id) {
+    std::vector<Entity*> result;
+    auto iterator = children_.find(parent_id);
+    if (iterator == children_.end()) return result;
+    for (const auto child_id : iterator->second) {
+        if (auto* child = find(child_id)) result.push_back(child);
+    }
+    return result;
+}
+
+std::vector<const Entity*> Scene::children(std::uint64_t parent_id) const {
+    std::vector<const Entity*> result;
+    const auto iterator = children_.find(parent_id);
+    if (iterator == children_.end()) return result;
+    for (const auto child_id : iterator->second) {
+        if (const auto* child = find(child_id)) result.push_back(child);
+    }
     return result;
 }
 
@@ -127,7 +173,42 @@ void Scene::set_parent(std::uint64_t id, std::uint64_t parent) {
         const Entity* parent_entity = find(ancestor);
         ancestor = parent_entity ? parent_entity->transform.parent : 0;
     }
+    if (entity->transform.parent != 0) {
+        auto parent_list = children_.find(entity->transform.parent);
+        if (parent_list != children_.end()) {
+            auto removed = std::remove(parent_list->second.begin(), parent_list->second.end(), id);
+            if (removed != parent_list->second.end()) parent_list->second.erase(removed, parent_list->second.end());
+        }
+    }
     entity->transform.parent = parent;
+    children_[parent].push_back(id);
+}
+
+void Scene::register_prefab(std::string prefab_name, PrefabDefinition nodes) {
+    prefabs_[std::move(prefab_name)] = std::move(nodes);
+}
+
+Entity& Scene::instantiate_prefab(const std::string& prefab_name, std::string instance_name, Transform transform) {
+    const auto prefab_iterator = prefabs_.find(prefab_name);
+    if (prefab_iterator == prefabs_.end()) throw std::out_of_range("prefab is not registered: " + prefab_name);
+    const auto& definition = prefab_iterator->second;
+    if (definition.empty()) throw std::invalid_argument("prefab cannot be empty: " + prefab_name);
+    auto& root = create_entity(std::move(instance_name), definition.front().kind, transform);
+    root.transform = transform;
+    for (std::size_t index = 1; index < definition.size(); ++index) {
+        const auto& node = definition[index];
+        auto& child = create_entity(node.name, node.kind, node.transform);
+        set_parent(child.id, root.id);
+    }
+    return root;
+}
+
+std::vector<std::string> Scene::prefab_names() const {
+    std::vector<std::string> names;
+    names.reserve(prefabs_.size());
+    for (const auto& [name, _] : prefabs_) names.push_back(name);
+    std::sort(names.begin(), names.end());
+    return names;
 }
 
 const std::string& Scene::name() const { return name_; }
@@ -480,6 +561,82 @@ void Engine::remove_system(const std::shared_ptr<System>& system) {
         systems_.erase(iterator);
     }
 }
+void Engine::set_project_directory(std::string path) { project_directory_ = std::move(path); }
+const std::string& Engine::project_directory() const { return project_directory_; }
+void Engine::set_project_name(std::string name) { project_name_ = std::move(name); }
+const std::string& Engine::project_name() const { return project_name_; }
+void Engine::set_autosave_enabled(bool enabled) { autosave_enabled_ = enabled; }
+bool Engine::autosave_enabled() const { return autosave_enabled_; }
+void Engine::set_autosave_interval(double seconds) { autosave_interval_ = std::max(0.0, seconds); }
+double Engine::autosave_interval() const { return autosave_interval_; }
+
+std::string Engine::project_state_path() const {
+    return std::filesystem::path(project_directory_) / "project_state.json";
+}
+std::string Engine::default_scene_path() const {
+    return std::filesystem::path(project_directory_) / "scenes" / "default_scene.json";
+}
+
+bool Engine::save_project_state() {
+    if (!scene_) return false;
+    const std::filesystem::path directory(project_directory_);
+    std::filesystem::create_directories(directory);
+    std::filesystem::create_directories(directory / "scenes");
+    const std::string scene_path = default_scene_path();
+    save_scene(*scene_, scene_path);
+
+    std::ofstream output(project_state_path());
+    if (!output) return false;
+    output << "{\n"
+           << "  \"project_name\": \"" << project_name_ << "\",\n"
+           << "  \"scene_path\": \"" << scene_path << "\",\n"
+           << "  \"autosave_enabled\": " << (autosave_enabled_ ? "true" : "false") << ",\n"
+           << "  \"autosave_interval\": " << autosave_interval_ << "\n"
+           << "}\n";
+    return output.good();
+}
+
+bool Engine::load_project_state() {
+    const std::filesystem::path path(project_state_path());
+    std::ifstream input(path);
+    if (!input) return false;
+    std::string content((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    const auto name_pos = content.find("\"project_name\": \"");
+    if (name_pos != std::string::npos) {
+        const auto begin = name_pos + std::string("\"project_name\": \"").size();
+        const auto end = content.find('"', begin);
+        if (end != std::string::npos) project_name_ = content.substr(begin, end - begin);
+    }
+    const auto scene_pos = content.find("\"scene_path\": \"");
+    if (scene_pos != std::string::npos) {
+        const auto begin = scene_pos + std::string("\"scene_path\": \"").size();
+        const auto end = content.find('"', begin);
+        if (end != std::string::npos) {
+            const std::string scene_path = content.substr(begin, end - begin);
+            if (std::filesystem::exists(scene_path)) {
+                const auto loaded = ksa_engine::load_scene(scene_path);
+                if (loaded) load_scene(loaded);
+            }
+        }
+    }
+    const auto autosave_pos = content.find("\"autosave_enabled\": ");
+    if (autosave_pos != std::string::npos) {
+        const auto begin = autosave_pos + std::string("\"autosave_enabled\": ").size();
+        const std::string value = content.substr(begin, std::min<std::size_t>(5, content.size() - begin));
+        autosave_enabled_ = value.find("true") != std::string::npos;
+    }
+    const auto interval_pos = content.find("\"autosave_interval\": ");
+    if (interval_pos != std::string::npos) {
+        const auto begin = interval_pos + std::string("\"autosave_interval\": ").size();
+        const auto end = content.find('\n', begin);
+        if (end != std::string::npos) {
+            const std::string value = content.substr(begin, end - begin);
+            autosave_interval_ = std::stod(value);
+        }
+    }
+    return scene_ != nullptr;
+}
+
 Scene* Engine::scene() { return scene_.get(); }
 const Scene* Engine::scene() const { return scene_.get(); }
 const EngineStats& Engine::stats() const { return stats_; }
