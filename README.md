@@ -1,6 +1,6 @@
 # KSA Engine Beta
 
-KSA Engine Beta is a small, modular game runtime for developer-authored scenes. It has an English developer UI and deliberately contains no AI generation, text-to-world, narrative, or procedural content systems.
+KSA Engine Beta is now a C++17-first, modular game runtime for developer-authored scenes. The native `KSA.exe` is built directly by CMake and deliberately contains no AI generation, text-to-world, narrative, or procedural content systems.
 
 ## Structure
 
@@ -17,7 +17,7 @@ ksa_engine/
   editor.py        # English 3D editor, toolbar, outliner, details and content browser
   demo.py          # Hand-authored sample scene
   __main__.py      # Headless, editor and play entry points
-cpp/               # Optional native C++ runtime target
+cpp/               # Primary C++17 runtime, engine systems, CLI and tests
 assets/            # Project assets
 ```
 
@@ -29,17 +29,15 @@ assets/            # Project assets
 
 The viewport is a software 3D pipeline designed to stay portable inside the packaged EXE. It renders a sky gradient with cloud bands, perspective grid, mesh faces, material color/roughness, directional light shading, and projected dynamic shadows. RMB orbits, MMB pans, the wheel zooms, and the editor toolbar switches Select/Move/Rotate/Scale modes. This is an intentionally inspectable foundation; a future GPU backend can implement the same renderer-facing components without changing scene files.
 
-## Run
+## Native runtime
 
 ```bash
-python -m pip install -r requirements.txt
-python -m ksa_engine --seconds 2 --json
-python -m ksa_engine --editor
-python -m ksa_engine --play
-python -m ksa_engine --save scene.json
+cmake -S cpp -B build/native -DCMAKE_BUILD_TYPE=Release
+cmake --build build/native --config Release
+./build/native/KSA --seconds 2 --json
 ```
 
-The editor uses English labels: `Viewport`, `Outliner`, `Details`, and `Content Browser`. Select entities in the outliner, move them with arrow keys, and save with `Ctrl+S`. The play view supports `WASD` movement and `Esc` exit.
+The native runtime owns the production engine path. The previous Python/Pygame editor remains as a development prototype until a C++ UI backend is selected; it is no longer used to build or package `KSA.exe`.
 
 ## Scene files
 
@@ -53,11 +51,9 @@ scene = load_scene("scene.json")
 engine.load_scene(scene)
 ```
 
-## Native build
+## Native tests
 
 ```bash
-cmake -S cpp -B build/native -DCMAKE_BUILD_TYPE=Release
-cmake --build build/native --config Release
 ctest --test-dir build/native --output-on-failure
 ```
 

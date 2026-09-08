@@ -18,10 +18,14 @@ endif()
 
 add_executable(ksa_engine_cpp src/main.cpp)
 target_link_libraries(ksa_engine_cpp PRIVATE ksa_engine_runtime)
+set_target_properties(ksa_engine_cpp PROPERTIES OUTPUT_NAME "KSA")
 
 include(CTest)
 if (BUILD_TESTING)
-    add_test(NAME native_runtime_smoke COMMAND ksa_engine_cpp "desert city combat" --seconds 2 --json)
+    add_test(NAME native_runtime_smoke COMMAND ksa_engine_cpp --seconds 1 --json)
+    add_executable(ksa_engine_runtime_tests tests/runtime_tests.cpp)
+    target_link_libraries(ksa_engine_runtime_tests PRIVATE ksa_engine_runtime)
+    add_test(NAME native_runtime_unit COMMAND ksa_engine_runtime_tests)
 endif()
 
 install(TARGETS ksa_engine_cpp RUNTIME DESTINATION bin)
