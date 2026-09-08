@@ -59,6 +59,9 @@ int main(int argc, char* argv[]) {
         bool profile = false;
         std::string save_path;
         std::string render_path;
+        #ifdef KSA_NATIVE_EDITOR
+        if (argc == 1) editor = true;
+        #endif
         for (int index = 1; index < argc; ++index) {
             const std::string argument = argv[index];
             if (argument == "--help" || argument == "-h") { print_usage(); return 0; }
