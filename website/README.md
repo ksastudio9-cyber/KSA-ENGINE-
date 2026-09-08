@@ -6,11 +6,15 @@ This folder is a self-contained static website. It does not call GitHub, GitHub 
 website/downloads/KSA.exe
 ```
 
-Then serve the folder from any independent host, VPS, object storage bucket, or local machine:
+Then serve the folder from any independent host, VPS, object storage bucket, or local machine. The engine itself is fully native C++; the website is static and does not require a Python runtime.
+
+For a standalone native server, build the project with CMake and run:
 
 ```bash
-python website/server.py --host 0.0.0.0 --port 8080
+./build/native/ksa_download_server --root website --port 8080
 ```
+
+The download is then available at `/downloads/KSA.exe`. Deploy the `website/` directory and `ksa_download_server` to your own VPS or Windows server to remove GitHub from the download path completely.
 
 The public download path is:
 

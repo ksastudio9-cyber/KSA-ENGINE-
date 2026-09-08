@@ -20,7 +20,7 @@ jobs:
       - name: Build C++ runtime
         shell: pwsh
         run: |
-          cmake -S cpp -B build/native -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake -S cpp -B build/native -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DKSA_ENABLE_NATIVE_EDITOR=ON
           cmake --build build/native --config Release --parallel
           ctest --test-dir build/native --build-config Release --output-on-failure
 

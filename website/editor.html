@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KSA Engine | 3D Block Editor</title>
+  <style>
+    :root { color-scheme: dark; --bg:#10181a; --panel:#182427; --line:#304044; --ink:#edf4ed; --muted:#9eb0ae; --accent:#d9a441; --teal:#3db7a5; }
+    * { box-sizing:border-box; }
+    html, body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--bg); color:var(--ink); font:13px/1.35 Arial, sans-serif; }
+    #app { display:grid; grid-template-columns:270px 1fr 286px; width:100%; height:100%; }
+    aside { background:var(--panel); border-right:1px solid var(--line); padding:18px; overflow:auto; }
+    aside.right { border-right:0; border-left:1px solid var(--line); }
+    h1 { margin:0 0 4px; font:600 19px Georgia, serif; letter-spacing:.02em; }
+    h2 { margin:22px 0 10px; font-size:11px; color:var(--accent); letter-spacing:.14em; text-transform:uppercase; }
+    p { margin:0 0 12px; color:var(--muted); }
+    #viewport { position:relative; min-width:0; }
+    canvas { display:block; width:100%; height:100%; outline:none; }
+    .toolbar { position:absolute; top:16px; left:16px; right:16px; display:flex; align-items:center; gap:8px; pointer-events:none; }
+    .toolbar > * { pointer-events:auto; }
+    .status { margin-left:auto; padding:8px 11px; color:var(--muted); background:rgba(16,24,26,.82); border:1px solid var(--line); }
+    button, input, select { width:100%; border:1px solid var(--line); border-radius:3px; color:var(--ink); background:#213034; font:inherit; }
+    button { min-height:36px; padding:0 10px; cursor:pointer; }
+    button:hover { border-color:var(--teal); background:#274348; }
+    button.primary { color:#102021; background:var(--teal); border-color:var(--teal); font-weight:700; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+    .row.three { grid-template-columns:repeat(3, 1fr); }
+    label { display:block; margin:8px 0 4px; color:var(--muted); font-size:11px; }
+    input, select { min-height:32px; padding:6px 7px; }
+    input[type="file"] { padding:7px 4px; font-size:11px; }
+    .hint { margin-top:14px; padding:10px; color:var(--muted); border:1px solid var(--line); background:#142023; font-size:11px; }
+    #objects { display:grid; gap:5px; max-height:33vh; overflow:auto; }
+    .object { display:flex; align-items:center; gap:7px; min-height:32px; padding:6px 8px; text-align:left; color:var(--muted); background:#142023; border:1px solid transparent; cursor:pointer; }
+    .object.selected { color:var(--ink); border-color:var(--accent); background:#283438; }
+    .swatch { width:13px; height:13px; flex:none; border-radius:2px; background:#d9a441; }
+    .danger { color:#f0a194; }
+    @media (max-width:900px) { #app { grid-template-columns:210px 1fr; } aside.right { position:absolute; z-index:3; right:0; top:0; bottom:0; width:250px; transform:translateX(100%); transition:transform .2s; } aside.right.open { transform:translateX(0); } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside>
+      <h1>KSA Developer Edition</h1>
+      <p>Author a world, then play-test it without leaving the editor.</p>
+      <div class="row"><button class="primary" id="add">＋ Add block</button><button id="duplicate">Duplicate</button></div>
+      <div class="row"><button id="new-scene">New scene</button><button id="play">▶ Play test</button></div>
+      <div class="row"><button id="save">Save map</button><button id="load">Load map</button></div>
+      <input id="map-file" type="file" accept="application/json" hidden>
+      <h2>Scene</h2>
+      <div id="objects"></div>
+      <div class="hint">Edit: W A S D moves the camera, right mouse orbits, and the gizmo transforms blocks. Play: W A S D moves the player. Press P to switch modes.</div>
+    </aside>
+    <main id="viewport">
+      <div class="toolbar"><button id="toggle-panel" style="width:auto">Inspector</button><span class="status" id="status">EDIT MODE · 0 objects</span></div>
+    </main>
+    <aside class="right" id="inspector">
+      <h2>Transform</h2>
+      <div class="row three"><button id="move-mode">Move</button><button id="rotate-mode">Rotate</button><button id="scale-mode">Scale</button></div>
+      <label>Position</label><div class="row three"><input id="px" type="number" step=".1"><input id="py" type="number" step=".1"><input id="pz" type="number" step=".1"></div>
+      <label>Rotation (degrees)</label><div class="row three"><input id="rx" type="number" step="1"><input id="ry" type="number" step="1"><input id="rz" type="number" step="1"></div>
+      <label>Size</label><div class="row three"><input id="sx" type="number" min=".05" step=".1"><input id="sy" type="number" min=".05" step=".1"><input id="sz" type="number" min=".05" step=".1"></div>
+      <button id="apply">Apply transform</button>
+      <h2>Material</h2>
+      <label>Color</label><input id="color" type="color" value="#d9a441">
+      <label>Texture image</label><input id="texture" type="file" accept="image/png,image/jpeg,image/webp">
+      <button id="clear-texture">Remove texture</button>
+      <h2>Selected block</h2>
+      <button class="danger" id="remove">Delete selected block</button>
+      <p id="selection" style="margin-top:10px">No block selected.</p>
+    </aside>
+  </div>
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import { TransformControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/TransformControls.js';
+
+    const viewport = document.querySelector('#viewport');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x91b9c4);
+    scene.fog = new THREE.Fog(0x91b9c4, 35, 130);
+    const camera = new THREE.PerspectiveCamera(55, 1, .1, 300);
+    camera.position.set(10, 9, 13);
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    viewport.appendChild(renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1, 0); controls.enableDamping = true; controls.maxPolarAngle = Math.PI * .49;
+    const transform = new TransformControls(camera, renderer.domElement);
+    transform.setMode('translate'); transform.setSize(.85);
+    transform.addEventListener('dragging-changed', event => { controls.enabled = !event.value; });
+    scene.add(transform);
+    scene.add(new THREE.HemisphereLight(0xbfe6ff, 0x6b482f, 1.25));
+    const sun = new THREE.DirectionalLight(0xffe2a5, 3.2);
+    sun.position.set(-18, 30, 12); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -45; sun.shadow.camera.right = 45; sun.shadow.camera.top = 45; sun.shadow.camera.bottom = -45; sun.shadow.bias = -.0004;
+    scene.add(sun);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), new THREE.MeshStandardMaterial({ color:0x8d6b45, roughness:.94 }));
+    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+    const grid = new THREE.GridHelper(90, 90, 0x927b5b, 0x6c6558); grid.position.y = .012; scene.add(grid);
+    const blocks = []; let selected = null; let nextId = 1; let playMode = false; let player = null;
+    const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2(); const keys = new Set();
+    const ui = id => document.querySelector('#' + id);
+
+    function addBlock(data = {}) {
+      const material = new THREE.MeshStandardMaterial({ color:data.color || 0xd9a441, roughness:.78, metalness:.02 });
+      if (data.texture) material.map = new THREE.TextureLoader().load(data.texture);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
+      mesh.name = data.name || `Block ${nextId++}`;
+      mesh.position.fromArray(data.position || [0, .5, 0]); mesh.rotation.fromArray((data.rotation || [0,0,0]).map(value => value * Math.PI / 180)); mesh.scale.fromArray(data.scale || [1,1,1]);
+      mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.texture = data.texture || null;
+      scene.add(mesh); blocks.push(mesh); select(mesh); refreshObjects(); return mesh;
+    }
+    function select(mesh) {
+      selected = mesh || null; transform.detach(); if (selected) transform.attach(selected); syncInspector(); refreshObjects();
+      ui('selection').textContent = selected ? selected.name : 'No block selected.';
+      updateStatus();
+    }
+    function updateStatus() { ui('status').textContent = `${playMode ? 'PLAY MODE' : 'EDIT MODE'} · ${blocks.length} objects${selected && !playMode ? ` · ${selected.name}` : ''}`; }
+    function refreshObjects() { ui('objects').innerHTML = blocks.map(block => `<button class="object ${block === selected ? 'selected' : ''}" data-id="${block.uuid}"><span class="swatch" style="background:${block.material.color.getStyle()}"></span>${block.name}</button>`).join(''); document.querySelectorAll('.object').forEach(button => button.onclick = () => select(blocks.find(block => block.uuid === button.dataset.id))); updateStatus(); }
+    function syncInspector() {
+      if (!selected) return;
+      ['x','y','z'].forEach(axis => { ui('p' + axis).value = selected.position[axis].toFixed(2); ui('s' + axis).value = selected.scale[axis].toFixed(2); ui('r' + axis).value = THREE.MathUtils.radToDeg(selected.rotation[axis]).toFixed(1); });
+      ui('color').value = '#' + selected.material.color.getHexString();
+    }
+    function applyTransform() {
+      if (!selected) return;
+      ['x','y','z'].forEach(axis => { selected.position[axis] = Number(ui('p' + axis).value); selected.scale[axis] = Math.max(.05, Number(ui('s' + axis).value)); selected.rotation[axis] = THREE.MathUtils.degToRad(Number(ui('r' + axis).value)); });
+      refreshObjects();
+    }
+    function mapData() { return blocks.map(block => ({ name:block.name, position:block.position.toArray(), rotation:[block.rotation.x, block.rotation.y, block.rotation.z].map(value => THREE.MathUtils.radToDeg(value)), scale:block.scale.toArray(), color:block.material.color.getHex(), texture:block.userData.texture })); }
+    function download(name, content, type) { const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([content], { type })); link.download = name; link.click(); URL.revokeObjectURL(link.href); }
+    function removeSelected() { if (!selected || playMode) return; scene.remove(selected); selected.geometry.dispose(); selected.material.dispose(); blocks.splice(blocks.indexOf(selected), 1); select(null); }
+    function createPlayer() { if (player) return; player = new THREE.Mesh(new THREE.CapsuleGeometry(.35, 1, 6, 12), new THREE.MeshStandardMaterial({ color:0x3db7a5, roughness:.7 })); player.position.set(0, 1, 3); player.castShadow = true; scene.add(player); }
+    function setPlayMode(value) { playMode = value; if (playMode) { createPlayer(); transform.detach(); controls.enabled = false; ui('play').textContent = '■ Stop test'; ui('play').classList.add('primary'); ui('selection').textContent = 'Play test running. WASD moves the player.'; } else { if (player) { scene.remove(player); player.geometry.dispose(); player.material.dispose(); player = null; } controls.enabled = true; ui('play').textContent = '▶ Play test'; ui('play').classList.remove('primary'); syncInspector(); } updateStatus(); }
+    ui('add').onclick = () => addBlock({ position:[0,.5,0] });
+    ui('duplicate').onclick = () => { if (selected) addBlock({ name:selected.name + ' copy', position:[selected.position.x + 1, selected.position.y, selected.position.z], rotation:[0,THREE.MathUtils.radToDeg(selected.rotation.y),0], scale:selected.scale.toArray(), color:selected.material.color.getHex(), texture:selected.userData.texture }); };
+    ui('remove').onclick = removeSelected; ui('apply').onclick = applyTransform;
+    ui('play').onclick = () => setPlayMode(!playMode);
+    ui('new-scene').onclick = () => { if (playMode) setPlayMode(false); blocks.slice().forEach(block => { scene.remove(block); block.geometry.dispose(); block.material.dispose(); }); blocks.length = 0; select(null); addBlock({ name:'Starter Block', position:[0,.5,0], color:0xd9a441 }); };
+    ui('move-mode').onclick = () => transform.setMode('translate'); ui('rotate-mode').onclick = () => transform.setMode('rotate'); ui('scale-mode').onclick = () => transform.setMode('scale');
+    ui('color').oninput = event => { if (selected) { selected.material.color.set(event.target.value); refreshObjects(); } };
+    ui('clear-texture').onclick = () => { if (selected) { selected.material.map = null; selected.userData.texture = null; selected.material.needsUpdate = true; } };
+    ui('texture').onchange = event => { const file = event.target.files[0]; if (!file || !selected) return; const reader = new FileReader(); reader.onload = () => { const url = String(reader.result); selected.material.map = new THREE.TextureLoader().load(url, texture => { texture.colorSpace = THREE.SRGBColorSpace; selected.material.needsUpdate = true; }); selected.userData.texture = url; }; reader.readAsDataURL(file); };
+    ui('save').onclick = () => download('ksa-map.json', JSON.stringify(mapData(), null, 2), 'application/json');
+    ui('load').onclick = () => ui('map-file').click();
+    ui('map-file').onchange = event => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { blocks.slice().forEach(block => { scene.remove(block); block.geometry.dispose(); block.material.dispose(); }); blocks.length = 0; JSON.parse(String(reader.result)).forEach(data => addBlock(data)); }; reader.readAsText(file); };
+    ui('toggle-panel').onclick = () => ui('inspector').classList.toggle('open');
+    renderer.domElement.addEventListener('pointerdown', event => { const rect = renderer.domElement.getBoundingClientRect(); pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1; pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1; raycaster.setFromCamera(pointer, camera); const hit = raycaster.intersectObjects(blocks)[0]; if (hit) select(hit.object); });
+    window.addEventListener('keydown', event => { keys.add(event.key.toLowerCase()); if (event.key.toLowerCase() === 'p') setPlayMode(!playMode); if (event.key === 'Delete') removeSelected(); if (event.key === 'Escape' && !playMode) select(null); });
+    window.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
+    function resize() { const width = viewport.clientWidth; const height = viewport.clientHeight; camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height, false); }
+    function animate() { requestAnimationFrame(animate); const direction = new THREE.Vector3(); if (keys.has('w')) direction.z -= 1; if (keys.has('s')) direction.z += 1; if (keys.has('a')) direction.x -= 1; if (keys.has('d')) direction.x += 1; if (direction.lengthSq()) { direction.normalize(); if (playMode && player) { player.position.addScaledVector(direction, .12); player.position.y = .9; camera.position.lerp(new THREE.Vector3(player.position.x + 6, 5, player.position.z + 8), .08); controls.target.lerp(player.position, .08); } else { direction.applyQuaternion(camera.quaternion); direction.y = 0; camera.position.addScaledVector(direction, .22); controls.target.addScaledVector(direction, .22); } } if (!playMode) controls.update(); renderer.render(scene, camera); }
+    window.addEventListener('resize', resize); addBlock({ name:'Starter Block', position:[0,.5,0], color:0xd9a441 }); addBlock({ name:'Stone Block', position:[2,.5,-1], color:0x87979a, scale:[1.4,1,1.4] }); resize(); animate();
+  </script>
+</body>
+</html>

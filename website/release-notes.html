@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>KSA Engine Beta | Release Notes</title>
+  <title>KSA Engine Full Edition | Release Notes</title>
   <style>
     :root { --ink:#10212b; --muted:#5e7077; --paper:#f5f1e8; --panel:#fffdf8; --line:#d9d7ce; --teal:#126c6b; --coral:#bd604d; }
     * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--paper); font-family:Georgia, 'Times New Roman', serif; }
@@ -20,15 +20,16 @@
   <main class="shell">
     <a class="back" href="index.html">← Back to KSA Engine</a>
     <h1>Release notes</h1>
-    <p class="lead">The independent Windows distribution of KSA Engine Beta.</p>
+    <p class="lead">The independent Windows distribution of KSA Engine Full Edition.</p>
     <article>
-      <h2>Beta 0.1.0</h2>
+      <h2>Full Edition 1.0.0</h2>
       <ul>
         <li>Fixed-step runtime loop with 60 Hz simulation.</li>
         <li>Scene graph, entities, transforms, and JSON scene persistence.</li>
         <li>Gravity, AABB collision, triggers, and event dispatch.</li>
-        <li>English scene editor with viewport, outliner, details, and content browser.</li>
-        <li>Dependency-light runtime renderer and camera controls.</li>
+        <li>Spatial-hash broad phase with deterministic AABB resolution.</li>
+        <li>Collision and trigger enter/exit events with scene lifecycle management.</li>
+        <li>Native C++17 build with Release, sanitizer, and CTest validation.</li>
       </ul>
       <a class="download" href="downloads/KSA.exe" download>Download KSA.exe</a>
     </article>
