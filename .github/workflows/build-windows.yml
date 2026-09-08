@@ -21,7 +21,8 @@ jobs:
         shell: pwsh
         run: |
           cmake -S cpp -B build/native -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DKSA_ENABLE_NATIVE_EDITOR=ON
-          cmake --build build/native --config Release --target ksa_engine_cpp ksa_engine_runtime_tests --parallel
+          cmake --build build/native --config Release --target ALL_BUILD --parallel
+          Get-ChildItem build/native -Recurse -Filter '*.exe' | Select-Object FullName, Length
           ctest --test-dir build/native -C Release --output-on-failure
 
       - name: Stage native KSA ENGINE.exe
