@@ -571,10 +571,10 @@ void Engine::set_autosave_interval(double seconds) { autosave_interval_ = std::m
 double Engine::autosave_interval() const { return autosave_interval_; }
 
 std::string Engine::project_state_path() const {
-    return std::filesystem::path(project_directory_) / "project_state.json";
+    return (std::filesystem::path(project_directory_) / "project_state.json").string();
 }
 std::string Engine::default_scene_path() const {
-    return std::filesystem::path(project_directory_) / "scenes" / "default_scene.json";
+    return (std::filesystem::path(project_directory_) / "scenes" / "default_scene.json").string();
 }
 
 bool Engine::save_project_state() {
