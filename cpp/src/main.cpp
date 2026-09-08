@@ -44,6 +44,34 @@ std::shared_ptr<ksa_engine::Scene> create_demo_scene() {
     return scene;
 }
 
+#ifdef KSA_NATIVE_EDITOR
+void prepare_native_editor_scene(ksa_engine::Scene& scene) {
+    bool has_renderable = false;
+    for (auto& [id, entity] : scene.entities()) {
+        (void)id;
+        if (entity.kind == "camera" || entity.kind == "light") continue;
+        if (!entity.mesh) entity.mesh = std::make_unique<ksa_engine::MeshComponent>();
+        if (!entity.material) {
+            entity.material = std::make_unique<ksa_engine::Material>();
+            if (entity.kind == "static") {
+                entity.material->red = 110; entity.material->green = 82; entity.material->blue = 52;
+            } else if (entity.kind == "player") {
+                entity.material->red = 225; entity.material->green = 180; entity.material->blue = 72;
+            } else {
+                entity.material->red = 170; entity.material->green = 110; entity.material->blue = 65;
+            }
+        }
+        has_renderable = true;
+    }
+    if (!has_renderable) {
+        auto& block = scene.create_entity("Starter Block", "mesh", {{0.0, 1.0, 0.0}, {}, {1.0, 1.0, 1.0}, 0});
+        block.mesh = std::make_unique<ksa_engine::MeshComponent>();
+        block.material = std::make_unique<ksa_engine::Material>();
+        block.material->red = 205; block.material->green = 150; block.material->blue = 55;
+    }
+}
+#endif
+
 void print_usage() {
     std::cout << ksa_engine::edition_name << " v" << ksa_engine::version << "\n"
               << "Usage: KSA [--editor|--play] [--seconds N] [--json] [--save PATH]\n"
@@ -204,6 +232,7 @@ int main(int argc, char* argv[]) {
         }
         if (editor) {
     #ifdef KSA_NATIVE_EDITOR
+            prepare_native_editor_scene(*engine.scene());
             const bool saved = engine.save_project_state();
             if (!saved) std::cerr << "Could not save initial project state before editor launch.\n";
             const int result = ksa_engine::run_native_editor(*engine.scene());

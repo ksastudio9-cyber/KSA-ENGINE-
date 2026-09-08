@@ -212,6 +212,7 @@ std::vector<std::string> Scene::prefab_names() const {
 }
 
 const std::string& Scene::name() const { return name_; }
+std::unordered_map<std::uint64_t, Entity>& Scene::entities() { return entities_; }
 const std::unordered_map<std::uint64_t, Entity>& Scene::entities() const { return entities_; }
 
 void EventBus::subscribe(const std::string& name, Listener listener) { listeners_[name].push_back(std::move(listener)); }

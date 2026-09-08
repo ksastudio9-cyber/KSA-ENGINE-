@@ -159,6 +159,7 @@ public:
     std::vector<std::string> prefab_names() const;
 
     const std::string& name() const;
+    std::unordered_map<std::uint64_t, Entity>& entities();
     const std::unordered_map<std::uint64_t, Entity>& entities() const;
     std::unordered_map<std::string, std::string> metadata;
     SkySettings sky;
