@@ -153,3 +153,6 @@ venv/
 ksa_project.json
 build/
 dist/
+
+# Independent website release binary is deployed separately from source.
+website/downloads/KSA.exe

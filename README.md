@@ -58,14 +58,15 @@ cmake --build build/native --config Release
 ctest --test-dir build/native --output-on-failure
 ```
 
-## Download website
+## Independent download website
 
-The static download page lives in `website/index.html` and is deployed to GitHub Pages by `.github/workflows/deploy-website.yml`. Push a version tag such as `v0.1.0` to build Windows and publish `KSA.exe` to the GitHub Release. The website's download button then resolves to the latest release asset.
+The website in `website/` does not depend on GitHub. Put `KSA.exe` in `website/downloads/` and serve it from your own VPS, object storage bucket, or hosting provider:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+python website/server.py --host 0.0.0.0 --port 8080
 ```
+
+The site is available at `/` and the direct installer path is `/downloads/KSA.exe`. See [website/README.md](website/README.md) for the production reverse-proxy setup. The binary is intentionally ignored by Git so it can be deployed independently from the source repository.
 
 ## Engineering position
 
