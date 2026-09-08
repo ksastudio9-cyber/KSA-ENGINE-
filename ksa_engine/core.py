@@ -128,7 +128,7 @@ class Scene:
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
-            "metadata": self.metadata,
+            "metadata": _json_value(self.metadata),
             "next_entity_id": self.next_entity_id,
             "entities": [
                 {"id": entity.id, "name": entity.name, "kind": entity.kind, "active": entity.active,

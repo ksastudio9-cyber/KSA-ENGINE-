@@ -11,9 +11,10 @@ ksa_engine/
   resources.py     # Cached texture/model/audio loader registry
   scene_io.py      # JSON scene persistence
   physics.py       # Fixed-step gravity, AABB collision and triggers
+  rendering.py     # Mesh, Material, Light, Camera, Sky and render settings
   systems.py       # Camera, movement and lighting systems
-  renderer3d.py    # Dependency-light 2.5D runtime renderer
-  editor.py        # English viewport, outliner, details and content browser
+  renderer3d.py    # Software 3D viewport with sky, lights, shadows and grid
+  editor.py        # English 3D editor, toolbar, outliner, details and content browser
   demo.py          # Hand-authored sample scene
   __main__.py      # Headless, editor and play entry points
 cpp/               # Optional native C++ runtime target
@@ -25,6 +26,8 @@ assets/            # Project assets
 `Engine` owns one active `Scene`, an ordered list of systems, and a fixed-step accumulator. A frame is clamped to 250ms, simulation advances at 60Hz, and the accumulator is bounded by a maximum number of fixed steps to avoid a spiral of death. Variable-rate systems run once after fixed simulation. `EngineStats` exposes frame count, fixed-step count, dropped time, and the interpolation alpha used by renderers. Systems can be stopped safely when scenes switch.
 
 `Scene` is the scene graph and entity registry. Entities have a stable integer id, a hierarchical `Transform`, a kind, and extensible component data. Parent cycles are rejected and world positions are resolved from the hierarchy. `SceneManager` registers named scenes and switches them through the engine lifecycle. `EventBus` decouples gameplay and tools. `ResourceManager` provides explicit loader registration and cached resources. `PhysicsSystem` uses a spatial-hash broad phase, deterministic AABB resolution, gravity, and collision/trigger enter/exit events.
+
+The viewport is a software 3D pipeline designed to stay portable inside the packaged EXE. It renders a sky gradient with cloud bands, perspective grid, mesh faces, material color/roughness, directional light shading, and projected dynamic shadows. RMB orbits, MMB pans, the wheel zooms, and the editor toolbar switches Select/Move/Rotate/Scale modes. This is an intentionally inspectable foundation; a future GPU backend can implement the same renderer-facing components without changing scene files.
 
 ## Run
 
